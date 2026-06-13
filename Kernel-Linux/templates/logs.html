@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="page-title mb-3">System Action Logs (Admin)</h2>
+<div class="card module-card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Action</th>
+            <th>Result</th>
+            <th>Detail</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in logs %}
+          <tr>
+            <td>{{ item.id }}</td>
+            <td>{{ item.username }}</td>
+            <td>{{ item.action }}</td>
+            <td>
+              {% if item.result == 'SUCCESS' %}
+                <span class="badge bg-success">SUCCESS</span>
+              {% else %}
+                <span class="badge bg-danger">FAILED</span>
+              {% endif %}
+            </td>
+            <td><small>{{ item.detail }}</small></td>
+            <td>{{ item.created_at }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

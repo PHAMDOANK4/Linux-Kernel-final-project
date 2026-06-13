@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div class="nm-page-header mb-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h1 class="nm-page-title mb-1">
+        <i class="fa fa-network-wired me-2 text-cyan"></i>Network Management
+      </h1>
+      <p class="nm-page-sub mb-0">Tool chẩn đoán và quản lý mạng</p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="nm-live-indicator">
+        <span class="nm-live-dot"></span>
+        <span class="small text-success fw-semibold">LIVE</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <label class="small text-muted mb-0">Tự động</label>
+        <select id="nm-refresh-interval" class="form-select form-select-sm nm-select" style="width:auto">
+          <option value="5000">5s</option>
+          <option value="10000" selected>10s</option>
+          <option value="30000">30s</option>
+          <option value="0">Tắt</option>
+        </select>
+      </div>
+      <span id="nm-last-update" class="nm-last-update small text-muted">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- KPI CARDS -->
+<section class="mb-4">
+  <div class="row g-3">
+    <div class="col-6 col-md-4">
+      <div class="nm-kpi-card nm-kpi-cyan">
+        <div class="nm-kpi-icon"><i class="fa fa-globe"></i></div>
+        <div class="nm-kpi-body">
+          <div class="nm-kpi-label">IP hiện tại</div>
+          <div class="nm-kpi-value nm-skeleton" id="kpi-ip-val">—</div>
+          <div class="nm-kpi-sub" id="kpi-ip-sub">Đang tải…</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4">
+      <div class="nm-kpi-card nm-kpi-blue">
+        <div class="nm-kpi-icon"><i class="fa fa-ethernet"></i></div>
+        <div class="nm-kpi-body">
+          <div class="nm-kpi-label">Giao diện hoạt động</div>
+          <div class="nm-kpi-value nm-skeleton" id="kpi-ifaces-val">—</div>
+          <div class="nm-kpi-sub" id="kpi-ifaces-sub">Đang tải…</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-4">
+      <div class="nm-kpi-card nm-kpi-teal">
+        <div class="nm-kpi-icon"><i class="fa fa-heartbeat"></i></div>
+        <div class="nm-kpi-body">
+          <div class="nm-kpi-label">Trạng thái mạng</div>
+          <div class="nm-kpi-value nm-skeleton" id="kpi-status-val">—</div>
+          <div class="nm-kpi-sub" id="kpi-status-sub">Đang tải…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NETWORK INTERFACES + ROUTING -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-xl-7">
+    <div class="nm-card">
+      <div class="nm-card-header">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fa fa-ethernet text-cyan"></i>
+          <span class="fw-semibold">Giao diện mạng</span>
+          <span class="nm-count-badge" id="iface-count">0</span>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div class="nm-search-wrap">
+            <i class="fa fa-search nm-search-icon"></i>
+            <input type="text" id="iface-search" class="nm-search-input" placeholder="Tìm giao diện…">
+          </div>
+          <select id="iface-filter-status" class="form-select form-select-sm nm-select" style="width:auto">
+            <option value="">Tất cả</option>
+            <option value="UP">UP</option>
+            <option value="DOWN">DOWN</option>
+          </select>
+          <button class="nm-btn-icon" id="iface-refresh-btn" title="Làm mới"><i class="fa fa-sync-alt"></i></button>
+        </div>
+      </div>
+      <div class="nm-table-wrap">
+        <table class="nm-table">
+          <thead>
+            <tr>
+              <th>Giao diện</th>
+              <th>Trạng thái</th>
+              <th>Địa chỉ IP</th>
+              <th>Địa chỉ MAC</th>
+              <th>Netmask</th>
+            </tr>
+          </thead>
+          <tbody id="iface-tbody">
+            <tr class="nm-skeleton-row"><td colspan="5"><div class="nm-skeleton-line"></div></td></tr>
+            <tr class="nm-skeleton-row"><td colspan="5"><div class="nm-skeleton-line" style="width:80%"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-5">
+    <div class="nm-card h-100">
+      <div class="nm-card-header">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fa fa-route text-cyan"></i>
+          <span class="fw-semibold">Bảng định tuyến</span>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div class="nm-search-wrap">
+            <i class="fa fa-search nm-search-icon"></i>
+            <input type="text" id="route-search" class="nm-search-input" placeholder="Tìm tuyến…">
+          </div>
+          <button class="nm-btn-icon" id="route-refresh-btn" title="Làm mới"><i class="fa fa-sync-alt"></i></button>
+        </div>
+      </div>
+      <div class="nm-table-wrap">
+        <table class="nm-table">
+          <thead>
+            <tr>
+              <th>Đích</th>
+              <th>Gateway</th>
+              <th>Giao diện</th>
+            </tr>
+          </thead>
+          <tbody id="route-tbody">
+            <tr class="nm-skeleton-row"><td colspan="3"><div class="nm-skeleton-line"></div></td></tr>
+            <tr class="nm-skeleton-row"><td colspan="3"><div class="nm-skeleton-line" style="width:75%"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NETWORK TOOLS -->
+<section class="mb-4">
+  <div class="nm-card">
+    <div class="nm-card-header" id="tools-header" style="cursor:pointer">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fa fa-tools text-yellow"></i>
+        <span class="fw-semibold">Công cụ mạng</span>
+      </div>
+      <i class="fa fa-chevron-down nm-chevron" id="tools-chevron"></i>
+    </div>
+    <div id="tools-body">
+      <div class="p-3">
+        <ul class="nm-tool-tabs mb-3">
+          <li class="nm-tool-tab active" data-tool="ping"><i class="fa fa-broadcast-tower me-1"></i>Ping</li>
+          <li class="nm-tool-tab" data-tool="traceroute"><i class="fa fa-route me-1"></i>Traceroute</li>
+          <li class="nm-tool-tab" data-tool="portcheck"><i class="fa fa-door-open me-1"></i>Port Check</li>
+          <li class="nm-tool-tab" data-tool="portscan"><i class="fa fa-search me-1"></i>Port Scan</li>
+          <li class="nm-tool-tab" data-tool="dns"><i class="fa fa-globe me-1"></i>DNS Lookup</li>
+          <li class="nm-tool-tab" data-tool="bandwidth"><i class="fa fa-chart-bar me-1"></i>Bandwidth</li>
+          <li class="nm-tool-tab" data-tool="toggle"><i class="fa fa-power-off me-1"></i>Toggle IF</li>
+          <li class="nm-tool-tab" data-tool="changeip"><i class="fa fa-edit me-1"></i>Change IP</li>
+        </ul>
+        <div class="row g-3">
+          <div class="col-12 col-md-5">
+            <div class="nm-tool-form active" id="tool-ping">
+              <label class="nm-form-label">Hostname / IP</label>
+              <input type="text" name="target" class="nm-form-input mb-2" placeholder="vd: 8.8.8.8">
+              <label class="nm-form-label">Số gói</label>
+              <input type="number" name="count" class="nm-form-input mb-3" value="4" min="1" max="20">
+              <button type="button" class="nm-btn-primary w-100 nm-run-btn"><i class="fa fa-play me-2"></i>Ping</button>
+            </div>
+            <div class="nm-tool-form" id="tool-traceroute">
+              <label class="nm-form-label">Hostname / IP</label>
+              <input type="text" name="target" class="nm-form-input mb-3" placeholder="vd: google.com">
+              <button type="button" class="nm-btn-primary w-100 nm-run-btn"><i class="fa fa-play me-2"></i>Traceroute</button>
+            </div>
+            <div class="nm-tool-form" id="tool-portcheck">
+              <label class="nm-form-label">Hostname / IP</label>
+              <input type="text" name="target" class="nm-form-input mb-2" placeholder="vd: 192.168.1.1">
+              <label class="nm-form-label">Cổng</label>
+              <input type="number" name="port" class="nm-form-input mb-3" placeholder="vd: 80" min="1" max="65535">
+              <button type="button" class="nm-btn-primary w-100 nm-run-btn"><i class="fa fa-play me-2"></i>Kiểm tra</button>
+            </div>
+            <div class="nm-tool-form" id="tool-portscan">
+              <label class="nm-form-label">Hostname / IP</label>
+              <input type="text" name="target" class="nm-form-input mb-2" placeholder="vd: 192.168.1.1">
+              <label class="nm-form-label">Dải cổng</label>
+              <input type="text" name="ports" class="nm-form-input mb-3" value="1-1024" placeholder="vd: 1-1024">
+              <button type="button" class="nm-btn-primary w-100 nm-run-btn"><i class="fa fa-search me-2"></i>Quét</button>
+            </div>
+            <div class="nm-tool-form" id="tool-dns">
+              <label class="nm-form-label">Tên miền</label>
+              <input type="text" name="target" class="nm-form-input mb-3" placeholder="vd: example.com">
+              <button type="button" class="nm-btn-primary w-100 nm-run-btn"><i class="fa fa-search me-2"></i>Tra cứu</button>
+            </div>
+            <div class="nm-tool-form" id="tool-bandwidth">
+              <label class="nm-form-label">Giao diện (để trống cho tất cả)</label>
+              <input type="text" name="interface" class="nm-form-input mb-3" placeholder="vd: eth0">
+              <button type="button" class="nm-btn-primary w-100 nm-run-btn"><i class="fa fa-chart-bar me-2"></i>Xem</button>
+            </div>
+            <div class="nm-tool-form" id="tool-toggle">
+              <label class="nm-form-label">Giao diện</label>
+              <input type="text" name="interface" class="nm-form-input mb-2" placeholder="vd: eth0">
+              <label class="nm-form-label">Trạng thái</label>
+              <select name="state" class="nm-form-input mb-3">
+                <option value="up">Bật (UP)</option>
+                <option value="down">Tắt (DOWN)</option>
+              </select>
+              <button type="button" class="nm-btn-danger w-100 nm-run-btn"><i class="fa fa-power-off me-2"></i>Chuyển đổi</button>
+            </div>
+            <div class="nm-tool-form" id="tool-changeip">
+              <label class="nm-form-label">Giao diện</label>
+              <input type="text" name="interface" class="nm-form-input mb-2" placeholder="vd: eth0">
+              <label class="nm-form-label">CIDR</label>
+              <input type="text" name="cidr" class="nm-form-input mb-2" placeholder="vd: 192.168.1.100/24">
+              <label class="nm-form-label">Gateway (tùy chọn)</label>
+              <input type="text" name="gateway" class="nm-form-input mb-3" placeholder="vd: 192.168.1.1">
+              <button type="button" class="nm-btn-danger w-100 nm-run-btn"><i class="fa fa-edit me-2"></i>Đổi IP</button>
+            </div>
+          </div>
+          <div class="col-12 col-md-7">
+            <div class="nm-result-viewer">
+              <div class="nm-result-header">
+                <span id="tool-result-title" class="fw-semibold text-cyan">Kết quả</span>
+                <button class="nm-btn-icon nm-btn-xs" id="copy-result-btn" title="Sao chép"><i class="fa fa-copy"></i></button>
+              </div>
+              <div class="nm-result-body" id="tool-result-body">
+                <span class="text-muted small">Chạy công cụ để xem kết quả…</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/network.css') }}">
+<script src="{{ url_for('static', filename='js/network_management.js') }}" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const header = document.getElementById('tools-header');
+  const body = document.getElementById('tools-body');
+  const chevron = document.getElementById('tools-chevron');
+  if (header && body) {
+    header.addEventListener('click', () => {
+      const hidden = body.style.display === 'none';
+      body.style.display = hidden ? '' : 'none';
+      if (chevron) chevron.classList.toggle('open', !hidden);
+    });
+  }
+});
+</script>
+{% endblock %}

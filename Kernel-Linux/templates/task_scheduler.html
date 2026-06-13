@@ -1,0 +1,470 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="page-title mb-3">Module 2 - Task Scheduler (Admin)</h2>
+<style>
+  .cron-nav .nav-link {
+    text-align: left;
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+
+  .cron-job-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .cron-job-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    border: 1px solid #dbeafe;
+    border-radius: 12px;
+    background: #f8fbff;
+    padding: 12px 14px;
+    cursor: pointer;
+  }
+
+  .cron-job-item:hover {
+    border-color: #60a5fa;
+    background: #eef6ff;
+  }
+
+  .cron-job-item input {
+    margin-top: 4px;
+  }
+
+  .cron-preview {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  [data-schedule-field].d-none {
+    display: none !important;
+  }
+</style>
+
+<div class="row g-3">
+  <div class="col-lg-3">
+    <div class="card dashboard-card"><div class="card-body">
+      <h6 class="mb-3">Task Scheduler</h6>
+      <div class="nav flex-column nav-pills cron-nav" id="cron-nav-tab" role="tablist" aria-orientation="vertical">
+        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-overview" type="button">Danh sach cron</button>
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-create" type="button">Tao cron</button>
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-update" type="button">Update cron</button>
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-run" type="button">Run cron</button>
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-delete" type="button">Delete cron</button>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="col-lg-9">
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="pane-overview">
+        <div class="card dashboard-card"><div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Danh sach cron job hien co</h5>
+            <span class="badge text-bg-primary">{{ cron_jobs|length }} job</span>
+          </div>
+
+          {% if cron_jobs %}
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th style="width: 28%">Lich</th>
+                  <th>Lenh</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for job in cron_jobs %}
+                <tr>
+                  <td><span class="cron-preview d-inline-block">{{ job.schedule }}</span></td>
+                  <td class="text-break">{{ job.command }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info mb-0">Chua co cron job nao duoc cai dat.</div>
+          {% endif %}
+
+          <details class="mt-3">
+            <summary>Raw output</summary>
+            <pre class="output mt-3">{{ cron_output }}</pre>
+          </details>
+        </div></div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-create">
+        <div class="card dashboard-card"><div class="card-body">
+          <h5 class="mb-3">Tao cron job moi</h5>
+          <form method="post" class="row g-3 cron-builder" data-builder-prefix="create" id="create-cron-form">
+            <input type="hidden" name="action" value="create">
+            <input type="hidden" name="schedule" id="create-schedule">
+            <div class="col-12 col-lg-4">
+              <label class="form-label">Kieu lich</label>
+              <select class="form-select" id="create-frequency">
+                <option value="hourly">Hang gio</option>
+                <option value="daily" selected>Hang ngay</option>
+                <option value="weekly">Hang tuan</option>
+                <option value="monthly">Hang thang</option>
+                <option value="yearly">Hang nam</option>
+                <option value="custom">Tuy chinh</option>
+              </select>
+            </div>
+            <div class="col-6 col-lg-4" data-schedule-field="time">
+              <label class="form-label">Gio</label>
+              <input type="time" class="form-control" id="create-time" value="08:00">
+            </div>
+            <div class="col-6 col-lg-4" data-schedule-field="weekday">
+              <label class="form-label">Thu trong tuan</label>
+              <select class="form-select" id="create-weekday">
+                <option value="0">Chu nhat</option>
+                <option value="1">Thu 2</option>
+                <option value="2">Thu 3</option>
+                <option value="3">Thu 4</option>
+                <option value="4">Thu 5</option>
+                <option value="5">Thu 6</option>
+                <option value="6">Thu 7</option>
+              </select>
+            </div>
+            <div class="col-6 col-lg-4" data-schedule-field="day">
+              <label class="form-label">Ngay trong thang</label>
+              <input type="number" min="1" max="31" class="form-control" id="create-day" value="1">
+            </div>
+            <div class="col-6 col-lg-4" data-schedule-field="date">
+              <label class="form-label">Ngay cu the</label>
+              <input type="date" class="form-control" id="create-date">
+            </div>
+            <div class="col-12" data-schedule-field="custom">
+              <label class="form-label">Cron thu cong</label>
+              <input type="text" class="form-control" id="create-manual" placeholder="*/5 * * * *">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Command</label>
+              <input class="form-control" name="command" id="create-command" placeholder="/path/script.sh" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Cron preview</label>
+              <input class="form-control cron-preview" id="create-preview" readonly>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-success w-100">Create</button>
+            </div>
+          </form>
+        </div></div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-update">
+        <div class="card dashboard-card"><div class="card-body">
+          <h5 class="mb-3">Update cron job</h5>
+          <form method="post" class="row g-3 cron-builder" data-builder-prefix="update" id="update-cron-form">
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" name="selected_line" id="update-selected-line">
+            <input type="hidden" name="schedule" id="update-schedule">
+            <div class="col-12">
+              <label class="form-label">Chon cron can sua</label>
+              {% if cron_jobs %}
+              <select class="form-select" id="update-job-select">
+                <option value="">-- Chon 1 cron job --</option>
+                {% for job in cron_jobs %}
+                <option value="{{ job.line_number }}" data-mode="{{ job.mode }}" data-minute="{{ job.minute }}" data-hour="{{ job.hour }}" data-day="{{ job.day_of_month }}" data-month="{{ job.month }}" data-weekday="{{ job.weekday }}" data-schedule="{{ job.schedule }}" data-command="{{ job.command }}">{{ job.schedule }} | {{ job.command }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              <select class="form-select" id="update-job-select" disabled>
+                <option>Khong co cron job nao</option>
+              </select>
+              {% endif %}
+            </div>
+            <div class="col-12 col-lg-4">
+              <label class="form-label">Kieu lich</label>
+              <select class="form-select" id="update-frequency">
+                <option value="hourly">Hang gio</option>
+                <option value="daily" selected>Hang ngay</option>
+                <option value="weekly">Hang tuan</option>
+                <option value="monthly">Hang thang</option>
+                <option value="yearly">Hang nam</option>
+                <option value="custom">Tuy chinh</option>
+              </select>
+            </div>
+            <div class="col-6 col-lg-4" data-schedule-field="time">
+              <label class="form-label">Gio</label>
+              <input type="time" class="form-control" id="update-time" value="08:00">
+            </div>
+            <div class="col-6 col-lg-4" data-schedule-field="weekday">
+              <label class="form-label">Thu trong tuan</label>
+              <select class="form-select" id="update-weekday">
+                <option value="0">Chu nhat</option>
+                <option value="1">Thu 2</option>
+                <option value="2">Thu 3</option>
+                <option value="3">Thu 4</option>
+                <option value="4">Thu 5</option>
+                <option value="5">Thu 6</option>
+                <option value="6">Thu 7</option>
+              </select>
+            </div>
+            <div class="col-6 col-lg-4" data-schedule-field="day">
+              <label class="form-label">Ngay trong thang</label>
+              <input type="number" min="1" max="31" class="form-control" id="update-day" value="1">
+            </div>
+            <div class="col-6 col-lg-4" data-schedule-field="date">
+              <label class="form-label">Ngay cu the</label>
+              <input type="date" class="form-control" id="update-date">
+            </div>
+            <div class="col-12" data-schedule-field="custom">
+              <label class="form-label">Cron thu cong</label>
+              <input type="text" class="form-control" id="update-manual" placeholder="*/5 * * * *">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Command moi</label>
+              <input class="form-control" name="command" id="update-command" placeholder="Lenh moi" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Cron preview</label>
+              <input class="form-control cron-preview" id="update-preview" readonly>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-warning w-100">Update</button>
+            </div>
+          </form>
+        </div></div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-run">
+        <div class="card dashboard-card"><div class="card-body">
+          <h5 class="mb-3">Run cron job</h5>
+          {% if cron_jobs %}
+          <form method="post" id="run-cron-form" class="row g-3">
+            <input type="hidden" name="action" value="run_now">
+            <input type="hidden" name="selected_line" id="run-selected-line">
+            <input type="hidden" name="selected_command" id="run-selected-command">
+            <div class="col-12">
+              <div class="cron-job-list">
+                {% for job in cron_jobs %}
+                <label class="cron-job-item">
+                  <input type="radio" name="run_job_choice" value="{{ job.line_number }}" data-command="{{ job.command }}">
+                  <div>
+                    <div class="fw-semibold">{{ job.schedule }}</div>
+                    <div class="text-muted small text-break">{{ job.command }}</div>
+                  </div>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-primary w-100">Run selected</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="alert alert-info mb-0">Chua co cron job nao de chon.</div>
+          {% endif %}
+        </div></div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-delete">
+        <div class="card dashboard-card"><div class="card-body">
+          <h5 class="mb-3">Delete cron job</h5>
+          {% if cron_jobs %}
+          <form method="post" id="delete-cron-form" class="row g-3" data-confirm="Xoa cron job da chon?">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="selected_line" id="delete-selected-line">
+            <div class="col-12">
+              <div class="cron-job-list">
+                {% for job in cron_jobs %}
+                <label class="cron-job-item">
+                  <input type="radio" name="delete_job_choice" value="{{ job.line_number }}" data-command="{{ job.command }}">
+                  <div>
+                    <div class="fw-semibold">{{ job.schedule }}</div>
+                    <div class="text-muted small text-break">{{ job.command }}</div>
+                  </div>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-danger w-100">Delete selected</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="alert alert-info mb-0">Chua co cron job nao de chon.</div>
+          {% endif %}
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if result %}
+<div class="card dashboard-card mt-3"><div class="card-body">
+  <h5>Ket qua</h5>
+  <pre class="output">{{ result.output }}</pre>
+</div></div>
+{% endif %}
+
+<script>
+  const cronJobs = {{ cron_jobs | tojson }};
+
+  function buildSchedule(prefix) {
+    const frequency = document.getElementById(`${prefix}-frequency`).value;
+    const timeValue = document.getElementById(`${prefix}-time`)?.value || "00:00";
+    const manualInput = document.getElementById(`${prefix}-manual`);
+    const dayInput = document.getElementById(`${prefix}-day`);
+    const dateInput = document.getElementById(`${prefix}-date`);
+    const weekdayInput = document.getElementById(`${prefix}-weekday`);
+    const scheduleInput = document.getElementById(`${prefix}-schedule`);
+    const previewInput = document.getElementById(`${prefix}-preview`);
+
+    const [hour = "00", minute = "00"] = timeValue.split(":");
+    let schedule = "";
+    let preview = "";
+
+    if (frequency === "hourly") {
+      schedule = `${minute} * * * *`;
+      preview = `Hang gio vao phut ${minute}`;
+    } else if (frequency === "daily") {
+      schedule = `${minute} ${hour} * * *`;
+      preview = `Hang ngay luc ${hour}:${minute}`;
+    } else if (frequency === "weekly") {
+      schedule = `${minute} ${hour} * * ${weekdayInput.value}`;
+      preview = `Hang tuan luc ${hour}:${minute}`;
+    } else if (frequency === "monthly") {
+      schedule = `${minute} ${hour} ${dayInput.value || "1"} * *`;
+      preview = `Hang thang luc ${hour}:${minute} vao ngay ${dayInput.value || "1"}`;
+    } else if (frequency === "yearly") {
+      const dateValue = dateInput.value || `${new Date().getFullYear()}-01-01`;
+      const parts = dateValue.split("-");
+      const month = parts[1] || "01";
+      const day = parts[2] || "01";
+      schedule = `${minute} ${hour} ${day} ${month} *`;
+      preview = `Hang nam luc ${hour}:${minute} vao ${day}/${month}`;
+    } else {
+      schedule = manualInput.value.trim();
+      preview = schedule ? `Cron thu cong: ${schedule}` : "Nhap cron thu cong";
+    }
+
+    scheduleInput.value = schedule;
+    previewInput.value = preview;
+  }
+
+  function syncScheduleFields(prefix) {
+    const frequency = document.getElementById(`${prefix}-frequency`).value;
+    const fields = document.querySelectorAll(`[data-builder-prefix="${prefix}"] [data-schedule-field]`);
+    fields.forEach((field) => {
+      const fieldType = field.dataset.scheduleField;
+      let visible = false;
+
+      if (frequency === "custom") {
+        visible = fieldType === "custom";
+      } else if (frequency === "hourly") {
+        visible = fieldType === "time";
+      } else if (frequency === "daily") {
+        visible = fieldType === "time";
+      } else if (frequency === "weekly") {
+        visible = fieldType === "time" || fieldType === "weekday";
+      } else if (frequency === "monthly") {
+        visible = fieldType === "time" || fieldType === "day";
+      } else if (frequency === "yearly") {
+        visible = fieldType === "time" || fieldType === "date";
+      }
+
+      field.classList.toggle("d-none", !visible);
+    });
+
+    buildSchedule(prefix);
+  }
+
+  function applyJobToUpdateForm(option) {
+    const prefix = "update";
+    const isNumericToken = (value) => /^\d+$/.test(String(value || ""));
+    const mode = option.dataset.mode || "custom";
+    document.getElementById("update-selected-line").value = option.value;
+    document.getElementById("update-command").value = option.dataset.command || "";
+    document.getElementById("update-frequency").value = mode;
+    const hourValue = isNumericToken(option.dataset.hour) ? String(option.dataset.hour).padStart(2, "0") : "00";
+    const minuteValue = isNumericToken(option.dataset.minute) ? String(option.dataset.minute).padStart(2, "0") : "00";
+    document.getElementById("update-time").value = `${hourValue}:${minuteValue}`;
+    document.getElementById("update-day").value = isNumericToken(option.dataset.day) ? option.dataset.day : "1";
+    document.getElementById("update-weekday").value = isNumericToken(option.dataset.weekday) ? option.dataset.weekday : "0";
+
+    if (mode === "yearly" && isNumericToken(option.dataset.month) && isNumericToken(option.dataset.day)) {
+      const month = String(option.dataset.month).padStart(2, "0");
+      const day = String(option.dataset.day).padStart(2, "0");
+      document.getElementById("update-date").value = `${new Date().getFullYear()}-${month}-${day}`;
+    } else {
+      document.getElementById("update-date").value = "";
+    }
+    document.getElementById("update-manual").value = option.dataset.schedule || "";
+    buildSchedule(prefix);
+    syncScheduleFields(prefix);
+  }
+
+  function bindBuilder(prefix) {
+    const frequency = document.getElementById(`${prefix}-frequency`);
+    const inputs = [
+      document.getElementById(`${prefix}-time`),
+      document.getElementById(`${prefix}-day`),
+      document.getElementById(`${prefix}-date`),
+      document.getElementById(`${prefix}-weekday`),
+      document.getElementById(`${prefix}-manual`),
+    ];
+
+    frequency.addEventListener("change", () => syncScheduleFields(prefix));
+    inputs.forEach((input) => {
+      if (!input) {
+        return;
+      }
+      input.addEventListener("input", () => buildSchedule(prefix));
+      input.addEventListener("change", () => buildSchedule(prefix));
+    });
+
+    syncScheduleFields(prefix);
+  }
+
+  bindBuilder("create");
+  bindBuilder("update");
+
+  const updateSelect = document.getElementById("update-job-select");
+  if (updateSelect) {
+    updateSelect.addEventListener("change", () => {
+      const option = updateSelect.selectedOptions[0];
+      if (!option || !option.value) {
+        return;
+      }
+      applyJobToUpdateForm(option);
+    });
+
+    if (updateSelect.options.length > 1) {
+      updateSelect.selectedIndex = 1;
+      applyJobToUpdateForm(updateSelect.selectedOptions[0]);
+    }
+  }
+
+  function bindSelectionForm(formId, hiddenLineId, hiddenCommandId) {
+    const form = document.getElementById(formId);
+    if (!form) {
+      return;
+    }
+
+    form.addEventListener("submit", (event) => {
+      const selected = form.querySelector('input[type="radio"]:checked');
+      if (!selected) {
+        event.preventDefault();
+        window.alert("Hay chon 1 cron job truoc.");
+        return;
+      }
+
+      document.getElementById(hiddenLineId).value = selected.value;
+      if (hiddenCommandId) {
+        document.getElementById(hiddenCommandId).value = selected.dataset.command || "";
+      }
+    });
+  }
+
+  bindSelectionForm("run-cron-form", "run-selected-line", "run-selected-command");
+  bindSelectionForm("delete-cron-form", "delete-selected-line");
+</script>
+{% endblock %}

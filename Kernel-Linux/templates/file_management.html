@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="page-title mb-3">Module 1 - File Management</h2>
+
+<style>
+  .file-nav .nav-link {
+    text-align: left;
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+
+  .file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .file-item {
+    border: 1px solid #dbeafe;
+    border-radius: 12px;
+    padding: 10px;
+    background: #f8fbff;
+    text-decoration: none;
+    color: inherit;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .file-item:hover {
+    border-color: #60a5fa;
+    background: #eef6ff;
+  }
+
+  .file-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  .file-name {
+    margin-top: 8px;
+    font-size: 0.9rem;
+    word-break: break-word;
+  }
+</style>
+
+<div class="row g-3">
+  <div class="col-lg-3">
+    <div class="card dashboard-card"><div class="card-body">
+      <h6 class="mb-3">Use Cases</h6>
+      <div class="nav flex-column nav-pills file-nav" id="file-nav-tab" role="tablist" aria-orientation="vertical">
+        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#pane-list" type="button">Xem Danh Sach</button>
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-create" type="button">Tao File/Folder</button>
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-transfer" type="button">Rename/Copy/Move</button>
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-delete-search" type="button">Delete/Search</button>
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#pane-permission" type="button">Permission/Ownership</button>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="col-lg-9">
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="pane-list">
+        <div class="card dashboard-card"><div class="card-body">
+          <h5>Danh sach File/Folder</h5>
+          <form method="post" class="row g-2 mb-3">
+            <input type="hidden" name="action" value="list">
+            <div class="col-9"><input class="form-control" name="path" value="{{ path }}"></div>
+            <div class="col-3"><button class="btn btn-primary w-100">Di den</button></div>
+          </form>
+
+          {% if list_ok %}
+          <div class="d-flex gap-2 mb-3">
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('file_management', path='/home') }}">/home</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('file_management', path=parent_path) }}">Len 1 cap</a>
+          </div>
+          <div class="file-grid">
+            {% for item in entries %}
+              {% if item.is_dir %}
+              <a class="file-item" href="{{ url_for('file_management', path=item.path) }}" title="{{ item.path }}">
+                <div class="file-icon">📁</div>
+                <div class="file-name">{{ item.name }}</div>
+              </a>
+              {% else %}
+              <div class="file-item" title="{{ item.path }}">
+                <div class="file-icon">📄</div>
+                <div class="file-name">{{ item.name }}</div>
+              </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+          {% else %}
+          <pre class="output">{{ list_output }}</pre>
+          {% endif %}
+        </div></div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-create">
+        <div class="card dashboard-card"><div class="card-body">
+          <h5>Tao File</h5>
+          <form method="post" class="row g-2">
+            <input type="hidden" name="action" value="create_file">
+            <div class="col-6"><input class="form-control" name="directory" placeholder="Thu muc" value="{{ path }}"></div>
+            <div class="col-6"><input class="form-control" name="filename" placeholder="Ten file"></div>
+            <div class="col-12"><button class="btn btn-success w-100">Tao File</button></div>
+          </form>
+          <hr>
+          <h5>Tao Thu Muc</h5>
+          <form method="post" class="row g-2">
+            <input type="hidden" name="action" value="create_folder">
+            <div class="col-6"><input class="form-control" name="directory" placeholder="Thu muc cha" value="{{ path }}"></div>
+            <div class="col-6"><input class="form-control" name="foldername" placeholder="Ten thu muc"></div>
+            <div class="col-12"><button class="btn btn-success w-100">Tao Folder</button></div>
+          </form>
+        </div></div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-transfer">
+        <div class="card dashboard-card"><div class="card-body">
+          <h5>Doi Ten</h5>
+          <form method="post" class="row g-2 mb-3">
+            <input type="hidden" name="action" value="rename">
+            <div class="col-6"><input class="form-control" name="source" placeholder="File/folder hien tai"></div>
+            <div class="col-6"><input class="form-control" name="new_name" placeholder="Ten moi hoac path moi"></div>
+            <div class="col-12"><button class="btn btn-warning w-100">Rename</button></div>
+          </form>
+          <h5>Copy</h5>
+          <form method="post" class="row g-2 mb-3">
+            <input type="hidden" name="action" value="copy">
+            <div class="col-6"><input class="form-control" name="source" placeholder="Source"></div>
+            <div class="col-6"><input class="form-control" name="destination" placeholder="Destination"></div>
+            <div class="col-12"><button class="btn btn-info w-100">Copy</button></div>
+          </form>
+          <h5>Move</h5>
+          <form method="post" class="row g-2">
+            <input type="hidden" name="action" value="move">
+            <div class="col-6"><input class="form-control" name="source" placeholder="Source"></div>
+            <div class="col-6"><input class="form-control" name="destination" placeholder="Destination"></div>
+            <div class="col-12"><button class="btn btn-secondary w-100">Move</button></div>
+          </form>
+        </div></div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-delete-search">
+        <div class="card dashboard-card"><div class="card-body">
+          <h5>Delete</h5>
+          <form method="post" class="row g-2 mb-3" data-confirm="Ban chac chan muon xoa?">
+            <input type="hidden" name="action" value="delete">
+            <div class="col-9"><input class="form-control" name="target" placeholder="Path can xoa"></div>
+            <div class="col-3"><button class="btn btn-danger w-100">Delete</button></div>
+          </form>
+          <h5>Search</h5>
+          <form method="post" class="row g-2">
+            <input type="hidden" name="action" value="search">
+            <div class="col-6"><input class="form-control" name="base_path" placeholder="Thu muc goc" value="{{ path }}"></div>
+            <div class="col-6"><input class="form-control" name="keyword" placeholder="Tu khoa"></div>
+            <div class="col-12"><button class="btn btn-primary w-100">Search</button></div>
+          </form>
+        </div></div>
+      </div>
+
+      <div class="tab-pane fade" id="pane-permission">
+        <div class="card dashboard-card"><div class="card-body">
+          <h5>Permission / Ownership</h5>
+          <form method="post" class="row g-2 mb-3">
+            <input type="hidden" name="action" value="chmod">
+            <div class="col-5"><input class="form-control" name="target" placeholder="Path"></div>
+            <div class="col-4"><input class="form-control" name="mode" placeholder="755"></div>
+            <div class="col-3"><button class="btn btn-dark w-100">chmod</button></div>
+          </form>
+          <form method="post" class="row g-2">
+            <input type="hidden" name="action" value="chown">
+            <div class="col-4"><input class="form-control" name="target" placeholder="Path"></div>
+            <div class="col-3"><input class="form-control" name="owner" placeholder="Owner"></div>
+            <div class="col-3"><input class="form-control" name="group" placeholder="Group"></div>
+            <div class="col-2"><button class="btn btn-dark w-100">chown</button></div>
+          </form>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if result %}
+<div class="card dashboard-card mt-3"><div class="card-body">
+  <h5>Ket qua lenh</h5>
+  <pre class="output">{{ result.output }}</pre>
+</div></div>
+{% endif %}
+{% endblock %}

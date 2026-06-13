@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card dashboard-card">
+  <div class="card-body p-4">
+    <h2 class="page-title">Tong Quan He Thong</h2>
+    <p class="text-muted">Thao tac Linux thong qua Flask + Shell Script.</p>
+    <div class="row g-3 mt-1">
+      <div class="col-md-3"><a class="btn btn-outline-primary w-100" href="{{ url_for('file_management') }}">File Management</a></div>
+      <div class="col-md-3"><a class="btn btn-outline-success w-100" href="{{ url_for('system_time') }}">System Time</a></div>
+      <div class="col-md-3"><a class="btn btn-outline-warning w-100" href="{{ url_for('package_management') }}">Package Management</a></div>
+      {% if user.role == 'admin' %}
+      <div class="col-md-3"><a class="btn btn-outline-dark w-100" href="{{ url_for('task_scheduler') }}">Task Scheduler</a></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

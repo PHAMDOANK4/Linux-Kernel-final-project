@@ -1,0 +1,37 @@
+{% set parsed = parse_display_output(output) %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h1 class="h3 mb-3">{{ title }}</h1>
+    {% if parsed.kind == 'table' %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            {% for header in parsed.headers %}
+            <th>{{ header }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in parsed.rows %}
+          <tr>
+            {% for value in row %}
+            <td>{{ value }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif parsed.kind == 'kv' %}
+    <dl class="row mb-0">
+      {% for key, value in parsed.items %}
+      <dt class="col-sm-4 col-lg-3">{{ key }}</dt>
+      <dd class="col-sm-8 col-lg-9">{{ value }}</dd>
+      {% endfor %}
+    </dl>
+    {% else %}
+    <pre class="mb-0">{{ parsed.text }}</pre>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="fm-page-header mb-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h1 class="fm-page-title mb-1">
+        <i class="fa fa-file me-2 text-fm-cyan"></i>File Monitoring
+      </h1>
+      <p class="fm-page-sub mb-0">Open files · Locked files · Watch · Directory size · Large files · Permissions</p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="fm-live-indicator">
+        <span class="fm-live-dot"></span>
+        <span class="small text-success fw-semibold">READY</span>
+      </div>
+      <span id="fm-last-update" class="fm-last-update small text-muted">—</span>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="fm-card">
+      <div class="fm-card-header">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fa fa-tools text-fm-cyan"></i>
+          <span class="fw-semibold">File Tools</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button class="fm-btn-icon fm-btn-sm" id="fm-clear-btn" title="Clear output"><i class="fa fa-eraser"></i></button>
+        </div>
+      </div>
+
+      <div class="p-3">
+        <ul class="fm-tool-tabs mb-3" id="fm-tool-tabs">
+          <li class="fm-tool-tab active" data-tool="open"><i class="fa fa-folder-open me-1"></i>Open Files</li>
+          <li class="fm-tool-tab" data-tool="locked"><i class="fa fa-lock me-1"></i>Locked Files</li>
+          <li class="fm-tool-tab" data-tool="watch"><i class="fa fa-eye me-1"></i>Watch File</li>
+          <li class="fm-tool-tab" data-tool="dirsize"><i class="fa fa-chart-pie me-1"></i>Dir Size</li>
+          <li class="fm-tool-tab" data-tool="large"><i class="fa fa-database me-1"></i>Large Files</li>
+          <li class="fm-tool-tab" data-tool="perm"><i class="fa fa-shield-alt me-1"></i>Permissions</li>
+        </ul>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-5">
+
+            <div class="fm-tool-panel active" id="panel-open">
+              <form class="fm-tool-form">
+                <label class="fm-form-label">Directory path <span class="text-muted fw-normal">(optional — leave empty for all)</span></label>
+                <input type="text" name="path" class="fm-form-input fm-path-input mb-2" placeholder="e.g. /var/log">
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                  <span class="fm-quick-path">/etc</span>
+                  <span class="fm-quick-path">/var/log</span>
+                  <span class="fm-quick-path">/home</span>
+                  <span class="fm-quick-path">/tmp</span>
+                </div>
+                <button class="fm-btn-primary w-100" type="submit"><i class="fa fa-search me-2"></i>List Open Files</button>
+              </form>
+            </div>
+
+            <div class="fm-tool-panel" id="panel-locked">
+              <form class="fm-tool-form">
+                <label class="fm-form-label">Directory path <span class="text-muted fw-normal">(optional)</span></label>
+                <input type="text" name="path" class="fm-form-input fm-path-input mb-2" placeholder="e.g. /var">
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                  <span class="fm-quick-path">/var</span>
+                  <span class="fm-quick-path">/var/log</span>
+                  <span class="fm-quick-path">/tmp</span>
+                </div>
+                <button class="fm-btn-primary w-100" type="submit"><i class="fa fa-lock me-2"></i>List Locked Files</button>
+              </form>
+            </div>
+
+            <div class="fm-tool-panel" id="panel-watch">
+              <form class="fm-tool-form">
+                <label class="fm-form-label">File path <span class="text-danger">*</span></label>
+                <input type="text" name="path" class="fm-form-input fm-path-input mb-2" placeholder="e.g. /var/log/syslog" required>
+                <label class="fm-form-label">Duration (seconds)</label>
+                <input type="number" name="duration" class="fm-form-input mb-3" value="10" min="1" max="300">
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                  <span class="fm-quick-path">/var/log/syslog</span>
+                  <span class="fm-quick-path">/var/log/auth.log</span>
+                  <span class="fm-quick-path">/var/log/nginx/access.log</span>
+                </div>
+                <button class="fm-btn-danger w-100" type="submit"><i class="fa fa-play me-2"></i>Watch File</button>
+              </form>
+            </div>
+
+            <div class="fm-tool-panel" id="panel-dirsize">
+              <form class="fm-tool-form">
+                <label class="fm-form-label">Directory path <span class="text-danger">*</span></label>
+                <input type="text" name="path" class="fm-form-input fm-path-input mb-2" placeholder="e.g. /home" required>
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                  <span class="fm-quick-path">/home</span>
+                  <span class="fm-quick-path">/var</span>
+                  <span class="fm-quick-path">/etc</span>
+                  <span class="fm-quick-path">/tmp</span>
+                </div>
+                <button class="fm-btn-primary w-100" type="submit"><i class="fa fa-chart-pie me-2"></i>Check Size</button>
+              </form>
+            </div>
+
+            <div class="fm-tool-panel" id="panel-large">
+              <form class="fm-tool-form">
+                <label class="fm-form-label">Directory path <span class="text-danger">*</span></label>
+                <input type="text" name="path" class="fm-form-input fm-path-input mb-2" placeholder="e.g. /" required>
+                <label class="fm-form-label">Minimum size</label>
+                <select name="size" class="fm-form-input mb-3">
+                  <option value="+10M">10 MB</option>
+                  <option value="+100M" selected>100 MB</option>
+                  <option value="+1G">1 GB</option>
+                  <option value="+10G">10 GB</option>
+                </select>
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                  <span class="fm-quick-path">/</span>
+                  <span class="fm-quick-path">/var</span>
+                  <span class="fm-quick-path">/home</span>
+                </div>
+                <button class="fm-btn-primary w-100" type="submit"><i class="fa fa-database me-2"></i>Find Large Files</button>
+              </form>
+            </div>
+
+            <div class="fm-tool-panel" id="panel-perm">
+              <form class="fm-tool-form">
+                <label class="fm-form-label">File path <span class="text-danger">*</span></label>
+                <input type="text" name="path" class="fm-form-input fm-path-input mb-2" placeholder="e.g. /etc/passwd" required>
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                  <span class="fm-quick-path">/etc/passwd</span>
+                  <span class="fm-quick-path">/etc/shadow</span>
+                  <span class="fm-quick-path">/var/log/syslog</span>
+                </div>
+                <button class="fm-btn-primary w-100" type="submit"><i class="fa fa-shield-alt me-2"></i>Check Permissions</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-7">
+            <div class="fm-result-viewer" id="fm-result-viewer">
+              <div class="fm-result-header">
+                <span id="fm-result-title" class="fw-semibold text-fm-cyan">Output</span>
+              </div>
+              <div class="fm-result-body" id="fm-result-body">
+                <span class="text-muted small">Select a file tool and run it to see output here...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+<script src="{{ url_for('static', filename='js/files.js') }}" defer></script>
+{% endblock %}

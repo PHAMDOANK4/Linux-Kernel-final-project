@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="page-title mb-3">Module 3 - System Time</h2>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card module-card"><div class="card-body">
+      <h5>Thong tin thoi gian hien tai</h5>
+      <pre class="result-box">{{ time_output }}</pre>
+    </div></div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card module-card"><div class="card-body">
+      <h5>Thao tac (Admin)</h5>
+      <form method="post" class="row g-2 mb-3">
+        <input type="hidden" name="action" value="set_time">
+        <div class="col-8"><input class="form-control" name="new_time" placeholder="2026-06-11 15:30:00" required></div>
+        <div class="col-4"><button class="btn btn-warning w-100">Set Time</button></div>
+      </form>
+      <form method="post" class="row g-2 mb-3">
+        <input type="hidden" name="action" value="set_timezone">
+        <div class="col-8"><input class="form-control" name="timezone" placeholder="Asia/Ho_Chi_Minh" required></div>
+        <div class="col-4"><button class="btn btn-warning w-100">Set Timezone</button></div>
+      </form>
+      <div class="d-grid gap-2">
+        <form method="post"><input type="hidden" name="action" value="enable_ntp"><button class="btn btn-success w-100">Enable NTP</button></form>
+        <form method="post"><input type="hidden" name="action" value="disable_ntp"><button class="btn btn-danger w-100">Disable NTP</button></form>
+        <form method="post"><input type="hidden" name="action" value="sync_time"><button class="btn btn-primary w-100">Sync Time</button></form>
+      </div>
+    </div></div>
+  </div>
+</div>
+{% if result %}
+<div class="card module-card mt-3"><div class="card-body">
+  <h5>Ket qua</h5>
+  <pre class="result-box">{{ result.output }}</pre>
+</div></div>
+{% endif %}
+{% endblock %}

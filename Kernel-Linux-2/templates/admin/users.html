@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div id="ad-toast-container" class="ad-toast-container"></div>
+
+<!-- PAGE HEADER -->
+<div class="ad-page-header mb-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h1 class="ad-page-title mb-1">
+        <i class="fa fa-users-cog me-2 text-cyan"></i>Quản lý người dùng
+      </h1>
+      <p class="ad-page-sub mb-0">Tạo, chỉnh sửa và quản lý tài khoản người dùng</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="ad-stat-badge ad-stat-cyan"><i class="fa fa-users"></i> Tổng: <strong id="ad-stat-total">—</strong></span>
+      <span class="ad-stat-badge ad-stat-green"><i class="fa fa-check-circle"></i> Hoạt động: <strong id="ad-stat-active">—</strong></span>
+      <span class="ad-stat-badge ad-stat-red"><i class="fa fa-pause-circle"></i> Vô hiệu: <strong id="ad-stat-inactive">—</strong></span>
+    </div>
+  </div>
+</div>
+
+<!-- USERS TABLE -->
+<div class="ad-card mb-4">
+  <div class="ad-card-header">
+    <div class="d-flex align-items-center gap-2">
+      <i class="fa fa-user text-cyan"></i>
+      <span class="fw-semibold">Người dùng</span>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <div class="ad-search-wrap">
+        <i class="fa fa-search ad-search-icon"></i>
+        <input type="text" id="ad-user-search" class="ad-search-input" placeholder="Tìm người dùng…">
+      </div>
+      <select id="ad-filter-role" class="ad-select" style="width:auto">
+        <option value="">Tất cả vai trò</option>
+      </select>
+      <select id="ad-filter-status" class="ad-select" style="width:auto">
+        <option value="">Tất cả trạng thái</option>
+        <option value="active">Hoạt động</option>
+        <option value="inactive">Vô hiệu</option>
+      </select>
+      <button class="ad-btn" id="ad-refresh-users" title="Làm mới"><i class="fa fa-sync-alt"></i></button>
+      <button class="ad-btn-primary ad-btn-sm" id="ad-btn-create"><i class="fa fa-plus me-1"></i>Tạo người dùng</button>
+    </div>
+  </div>
+  <div class="ad-table-wrap">
+    <table class="ad-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Họ tên</th>
+          <th>Vai trò</th>
+          <th>Ngày tạo</th>
+          <th>Trạng thái</th>
+          <th>Thao tác</th>
+        </tr>
+      </thead>
+      <tbody id="ad-user-body">
+        <tr><td colspan="6" class="text-center py-3"><span class="ad-spinner"></span> Đang tải…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- AUDIT LOGS -->
+<div class="ad-card">
+  <div class="ad-card-header">
+    <div class="d-flex align-items-center gap-2">
+      <i class="fa fa-history text-purple"></i>
+      <span class="fw-semibold">Nhật ký hoạt động</span>
+    </div>
+    <div class="ad-search-wrap">
+      <i class="fa fa-search ad-search-icon"></i>
+      <input type="text" id="ad-log-search" class="ad-search-input" placeholder="Tìm nhật ký…">
+    </div>
+  </div>
+  <div class="ad-table-wrap" style="max-height:360px;overflow-y:auto">
+    <table class="ad-table">
+      <thead class="ad-thead-sticky">
+        <tr>
+          <th>Người dùng</th>
+          <th>Hành động</th>
+          <th>Module</th>
+          <th>Kết quả</th>
+          <th>Thời gian</th>
+        </tr>
+      </thead>
+      <tbody id="ad-log-body">
+        <tr><td colspan="5" class="text-center py-3"><span class="ad-spinner"></span> Đang tải…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── MODAL: Create ──────────────────────────── -->
+<div class="ad-modal-overlay" id="modal-create">
+  <div class="ad-modal">
+    <div class="ad-modal-header">
+      <span><i class="fa fa-plus-circle text-cyan me-2"></i>Tạo người dùng</span>
+      <button class="ad-modal-close">&times;</button>
+    </div>
+    <form id="ad-create-form">
+      <div class="ad-modal-body vstack gap-3">
+        <div>
+          <label class="ad-label">Username</label>
+          <input type="text" name="username" class="ad-input" required>
+        </div>
+        <div>
+          <label class="ad-label">Họ tên</label>
+          <input type="text" name="full_name" class="ad-input">
+        </div>
+        <div>
+          <label class="ad-label">Mật khẩu</label>
+          <input type="password" name="password" class="ad-input" required>
+        </div>
+        <div>
+          <label class="ad-label">Vai trò</label>
+          <select name="role" class="ad-input ad-role-select"></select>
+        </div>
+      </div>
+      <div class="ad-modal-footer">
+        <button type="button" class="ad-btn ad-modal-close-btn">Hủy</button>
+        <button type="submit" class="ad-btn-primary ad-btn-sm"><i class="fa fa-plus me-1"></i>Tạo</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── MODAL: Edit ────────────────────────────── -->
+<div class="ad-modal-overlay" id="modal-edit">
+  <div class="ad-modal">
+    <div class="ad-modal-header">
+      <span><i class="fa fa-pen text-cyan me-2"></i>Sửa người dùng</span>
+      <button class="ad-modal-close">&times;</button>
+    </div>
+    <form id="ad-edit-form">
+      <input type="hidden" id="edit-user-id">
+      <div class="ad-modal-body vstack gap-3">
+        <div>
+          <label class="ad-label">Họ tên</label>
+          <input type="text" id="edit-full-name" class="ad-input">
+        </div>
+        <div>
+          <label class="ad-label">Vai trò</label>
+          <select id="edit-role" class="ad-input"></select>
+        </div>
+      </div>
+      <div class="ad-modal-footer">
+        <button type="button" class="ad-btn ad-modal-close-btn">Hủy</button>
+        <button type="submit" class="ad-btn-primary ad-btn-sm">Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── MODAL: Reset Password ──────────────────── -->
+<div class="ad-modal-overlay" id="modal-pw">
+  <div class="ad-modal">
+    <div class="ad-modal-header">
+      <span><i class="fa fa-key text-cyan me-2"></i>Đặt lại mật khẩu</span>
+      <button class="ad-modal-close">&times;</button>
+    </div>
+    <form id="ad-pw-form">
+      <input type="hidden" id="pw-user-id">
+      <div class="ad-modal-body vstack gap-3">
+        <div>
+          <label class="ad-label">Mật khẩu mới</label>
+          <input type="password" id="pw-password" class="ad-input" required minlength="3">
+        </div>
+      </div>
+      <div class="ad-modal-footer">
+        <button type="button" class="ad-btn ad-modal-close-btn">Hủy</button>
+        <button type="submit" class="ad-btn-primary ad-btn-sm">Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── MODAL: Delete Confirm ──────────────────── -->
+<div class="ad-modal-overlay" id="modal-delete">
+  <div class="ad-modal">
+    <div class="ad-modal-header">
+      <span><i class="fa fa-trash text-red me-2"></i>Xác nhận xóa</span>
+      <button class="ad-modal-close">&times;</button>
+    </div>
+    <input type="hidden" id="delete-user-id">
+    <div class="ad-modal-body">
+      <p>Bạn có chắc muốn xóa người dùng <strong id="delete-user-name"></strong>?</p>
+      <p class="small text-muted">Hành động này không thể hoàn tác.</p>
+    </div>
+    <div class="ad-modal-footer">
+      <button type="button" class="ad-btn ad-modal-close-btn">Hủy</button>
+      <button class="ad-btn-danger ad-btn-sm" id="ad-confirm-delete">Xóa</button>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+<script src="{{ url_for('static', filename='js/admin.js') }}" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.ad-modal-close-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.ad-modal-overlay').forEach(m => m.classList.remove('open'));
+    });
+  });
+});
+</script>
+{% endblock %}

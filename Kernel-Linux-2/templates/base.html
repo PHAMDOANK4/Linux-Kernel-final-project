@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or 'Ubuntu Monitoring & Network Administration' }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-app">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-secondary sticky-top">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="{{ url_for('dashboard.index') }}">Ubuntu Monitor</a>
+    <div class="d-flex gap-2 align-items-center text-white small">
+      {% if session.get('user_id') %}
+        <span>{{ session.get('username') }} · {{ session.get('role') }}</span>
+        <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.logout') }}">Logout</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+<div class="container-fluid py-3">
+  <div class="row g-3">
+    <aside class="col-12 col-lg-2">
+      <div class="card shadow-sm sidebar-card">
+        <div class="card-body">
+          <div class="list-group list-group-flush small">
+            <a class="list-group-item list-group-item-action" href="{{ url_for('dashboard.index') }}">Dashboard</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('process.index') }}">Process</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('files.index') }}">Files</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('sockets.index') }}">Sockets</a>
+            <a class="list-group-item list-group-item-action" href="{{ url_for('network.index') }}">Network</a>
+            {% if session.get('role') == 'Admin' %}
+            <a class="list-group-item list-group-item-action" href="{{ url_for('admin.users') }}">Users</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </aside>
+    <main class="col-12 col-lg-10">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} shadow-sm">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% if request.endpoint and request.endpoint.startswith('dashboard.') %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endif %}
+</body>
+</html>

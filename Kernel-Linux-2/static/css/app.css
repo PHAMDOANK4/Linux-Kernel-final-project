@@ -1,0 +1,46 @@
+body.bg-app {
+  background: linear-gradient(135deg, #09111f 0%, #121826 45%, #1f2a37 100%);
+  color: #e5e7eb;
+}
+
+.card,
+.sidebar-card {
+  background: rgba(15, 23, 42, 0.92);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+.list-group-item {
+  background: transparent;
+  color: #e5e7eb;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.list-group-item:hover,
+.list-group-item:focus {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.table {
+  --bs-table-color: #e5e7eb;
+  --bs-table-bg: transparent;
+  --bs-table-striped-bg: rgba(255, 255, 255, 0.04);
+  --bs-table-hover-bg: rgba(255, 255, 255, 0.07);
+}
+
+.text-muted {
+  color: rgba(229, 231, 235, 0.72) !important;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #e5e7eb;
+}
+
+.auth-shell .card {
+  background: rgba(255, 255, 255, 0.96);
+  color: #111827;
+}

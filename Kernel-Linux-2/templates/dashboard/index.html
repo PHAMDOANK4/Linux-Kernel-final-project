@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<div class="db-page-header mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <div class="db-page-title">Bảng điều khiển</div>
+    <div class="db-page-sub"><span class="db-pulse me-1"></span>Tự động làm mới mỗi 5 giây</div>
+  </div>
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4 col-xl-2"><div class="db-kpi-card" id="db-kpi-cpu"></div></div>
+  <div class="col-6 col-md-4 col-xl-2"><div class="db-kpi-card" id="db-kpi-mem"></div></div>
+  <div class="col-6 col-md-4 col-xl-2"><div class="db-kpi-card" id="db-kpi-disk"></div></div>
+  <div class="col-6 col-md-4 col-xl-2"><div class="db-kpi-card" id="db-kpi-uptime"></div></div>
+  <div class="col-6 col-md-4 col-xl-2"><div class="db-kpi-card" id="db-kpi-proc"></div></div>
+  <div class="col-6 col-md-4 col-xl-2"><div class="db-kpi-card" id="db-kpi-net"></div></div>
+</div>
+<div class="row g-3">
+  <div class="col-12 col-lg-6 d-flex flex-column">
+    <div class="db-card flex-fill">
+      <div class="db-card-header"><span>Tiến trình tốn CPU nhất</span></div>
+      <div class="db-card-body p-0">
+        <table class="db-table" id="db-proc-table">
+          <thead><tr><th>PID</th><th>Tên</th><th>User</th><th>CPU</th><th>RAM</th></tr></thead>
+          <tbody><tr><td colspan="5" style="text-align:center;color:var(--db-text-muted)">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6 d-flex flex-column">
+    <div class="db-card flex-fill">
+      <div class="db-card-header"><span>Giao diện mạng</span></div>
+      <div class="db-card-body p-0">
+        <table class="db-table" id="db-net-table">
+          <thead><tr><th>Interface</th><th>TX</th><th>RX</th><th>IP</th><th>Trạng thái</th></tr></thead>
+          <tbody><tr><td colspan="5" style="text-align:center;color:var(--db-text-muted)">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 mt-3">
+    <div class="db-card">
+      <div class="db-card-header"><span>Hoạt động gần đây</span></div>
+      <div class="db-card-body p-0">
+        <table class="db-table" id="db-activity-table">
+          <thead><tr><th>Thời gian</th><th>Người dùng</th><th>Hành động</th></tr></thead>
+          <tbody><tr><td colspan="3" style="text-align:center;color:var(--db-text-muted)">Đang tải...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

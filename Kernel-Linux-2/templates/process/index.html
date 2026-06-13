@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/process.css') }}">
+<style>
+@keyframes pr-spin { to { transform: rotate(360deg); } }
+</style>
+<div class="pr-page-header mb-3">
+  <div>
+    <div class="pr-page-title">Quản lý tiến trình</div>
+    <div class="pr-page-sub">Danh sách tiến trình, tìm kiếm, kill, force-kill và restart service</div>
+  </div>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <div class="pr-search-box">
+      <span class="pr-search-icon">🔍</span>
+      <input type="text" id="pr-search-input" placeholder="Tìm kiếm PID, tên, user...">
+    </div>
+    <button class="pr-btn pr-btn-ghost" onclick="loadProcesses()">🔄 Làm mới</button>
+    {% if user.role == 'Admin' %}
+    <button class="pr-btn pr-btn-primary" onclick="window.__prRestartSvc()">⟳ Restart Service</button>
+    {% endif %}
+  </div>
+</div>
+<div class="pr-card">
+  <div class="pr-table-wrap">
+    <table class="pr-table" id="pr-table">
+      <thead>
+        <tr>
+          <th>PID</th><th>Tên</th><th>User</th><th>CPU %</th><th>RAM %</th>
+          <th>Trạng thái</th><th>Thời gian</th><th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="8" style="text-align:center;color:var(--pr-text-muted);padding:2.5rem 0">Đang tải...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/process.js') }}"></script>
+{% endblock %}

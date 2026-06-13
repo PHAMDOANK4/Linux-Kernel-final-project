@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="page-title mb-3">Module 4 - Package Management</h2>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card module-card"><div class="card-body">
+      <h5>Danh sach package (dpkg)</h5>
+      <pre class="result-box">{{ list_output }}</pre>
+    </div></div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card module-card"><div class="card-body">
+      <h5>Tim package</h5>
+      <form method="post" class="row g-2 mb-3">
+        <input type="hidden" name="action" value="search">
+        <div class="col-8"><input class="form-control" name="keyword" placeholder="nginx" required></div>
+        <div class="col-4"><button class="btn btn-primary w-100">Search</button></div>
+      </form>
+
+      <h5>Cai / Go / Upgrade (Admin)</h5>
+      <form method="post" class="row g-2 mb-2">
+        <input type="hidden" name="action" value="install">
+        <div class="col-8"><input class="form-control" name="package_name" placeholder="package" required></div>
+        <div class="col-4"><button class="btn btn-success w-100">Install</button></div>
+      </form>
+      <form method="post" class="row g-2 mb-2" data-confirm="Go package nay?">
+        <input type="hidden" name="action" value="remove">
+        <div class="col-8"><input class="form-control" name="package_name" placeholder="package" required></div>
+        <div class="col-4"><button class="btn btn-danger w-100">Remove</button></div>
+      </form>
+      <form method="post" class="row g-2">
+        <input type="hidden" name="action" value="upgrade">
+        <div class="col-8"><input class="form-control" name="package_name" placeholder="bo trong = upgrade all"></div>
+        <div class="col-4"><button class="btn btn-warning w-100">Upgrade</button></div>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% if result %}
+<div class="card module-card mt-3"><div class="card-body">
+  <h5>Ket qua</h5>
+  <pre class="result-box">{{ result.output }}</pre>
+</div></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,16 @@
+services:
+  ubuntu-monitor:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      SECRET_KEY: change-me-in-production
+      DEFAULT_ADMIN_USERNAME: admin
+      DEFAULT_ADMIN_PASSWORD: Admin@12345
+      DEFAULT_OPERATOR_USERNAME: operator
+      DEFAULT_OPERATOR_PASSWORD: Operator@12345
+    volumes:
+      - ./instance:/app/instance
+      - ./logs:/app/logs
+      - ./scripts:/app/scripts:ro
+    restart: unless-stopped

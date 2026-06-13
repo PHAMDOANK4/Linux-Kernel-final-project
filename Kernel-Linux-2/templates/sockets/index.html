@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="sk-page-header mb-4">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h1 class="sk-page-title mb-1">
+        <i class="fa fa-plug me-2 text-sk-cyan"></i>Socket Management
+      </h1>
+      <p class="sk-page-sub mb-0">All sockets · TCP · UDP · Listening ports · By process · Statistics · Close connection</p>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="sk-live-indicator">
+        <span class="sk-live-dot"></span>
+        <span class="small text-success fw-semibold">LIVE</span>
+      </div>
+      <span id="sk-last-update" class="sk-last-update small text-muted">—</span>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4" id="sk-kpi-row">
+  <div class="col-6 col-md-3 col-xl">
+    <div class="sk-kpi-card sk-kpi-blue">
+      <div class="sk-kpi-icon"><i class="fa fa-globe"></i></div>
+      <div class="sk-kpi-label">Total Sockets</div>
+      <div class="sk-kpi-value" id="sk-kpi-total">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 col-xl">
+    <div class="sk-kpi-card sk-kpi-green">
+      <div class="sk-kpi-icon"><i class="fa fa-arrow-up"></i></div>
+      <div class="sk-kpi-label">TCP</div>
+      <div class="sk-kpi-value" id="sk-kpi-tcp">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 col-xl">
+    <div class="sk-kpi-card sk-kpi-purple">
+      <div class="sk-kpi-icon"><i class="fa fa-arrow-down"></i></div>
+      <div class="sk-kpi-label">UDP</div>
+      <div class="sk-kpi-value" id="sk-kpi-udp">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 col-xl">
+    <div class="sk-kpi-card sk-kpi-cyan">
+      <div class="sk-kpi-icon"><i class="fa fa-headphones"></i></div>
+      <div class="sk-kpi-label">Listening</div>
+      <div class="sk-kpi-value" id="sk-kpi-listen">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 col-xl">
+    <div class="sk-kpi-card sk-kpi-teal">
+      <div class="sk-kpi-icon"><i class="fa fa-check-circle"></i></div>
+      <div class="sk-kpi-label">Established</div>
+      <div class="sk-kpi-value" id="sk-kpi-estab">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 col-xl">
+    <div class="sk-kpi-card sk-kpi-orange">
+      <div class="sk-kpi-icon"><i class="fa fa-hourglass-half"></i></div>
+      <div class="sk-kpi-label">TIME_WAIT</div>
+      <div class="sk-kpi-value" id="sk-kpi-timewait">—</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 col-xl">
+    <div class="sk-kpi-card sk-kpi-red">
+      <div class="sk-kpi-icon"><i class="fa fa-exclamation-triangle"></i></div>
+      <div class="sk-kpi-label">CLOSE_WAIT</div>
+      <div class="sk-kpi-value" id="sk-kpi-closewait">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="sk-card">
+      <div class="sk-card-header">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fa fa-tools text-sk-cyan"></i>
+          <span class="fw-semibold">Socket Tools</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button class="sk-btn-icon sk-btn-sm" onclick="SOCK.loadOverview()" title="Refresh overview"><i class="fa fa-sync-alt"></i></button>
+        </div>
+      </div>
+
+      <div class="p-3">
+        <ul class="sk-tool-tabs mb-3">
+          <li class="sk-tool-tab active" data-tool="list"><i class="fa fa-list me-1"></i>All Sockets</li>
+          <li class="sk-tool-tab" data-tool="tcp"><i class="fa fa-arrow-up me-1"></i>TCP</li>
+          <li class="sk-tool-tab" data-tool="udp"><i class="fa fa-arrow-down me-1"></i>UDP</li>
+          <li class="sk-tool-tab" data-tool="listening"><i class="fa fa-headphones me-1"></i>Listening</li>
+          <li class="sk-tool-tab" data-tool="byprocess"><i class="fa fa-search me-1"></i>By Process</li>
+          <li class="sk-tool-tab" data-tool="stats"><i class="fa fa-chart-bar me-1"></i>Stats</li>
+          <li class="sk-tool-tab" data-tool="close"><i class="fa fa-power-off me-1"></i>Close</li>
+        </ul>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-5">
+
+            <div class="sk-tool-panel active" id="panel-list">
+              <form class="sk-tool-form">
+                <label class="sk-form-label">View all active sockets (TCP + UDP)</label>
+                <button class="sk-btn-primary w-100 mt-2" type="submit"><i class="fa fa-list me-2"></i>List All Sockets</button>
+              </form>
+            </div>
+
+            <div class="sk-tool-panel" id="panel-tcp">
+              <form class="sk-tool-form">
+                <label class="sk-form-label">View all TCP sockets</label>
+                <button class="sk-btn-primary w-100 mt-2" type="submit"><i class="fa fa-arrow-up me-2"></i>List TCP Sockets</button>
+              </form>
+            </div>
+
+            <div class="sk-tool-panel" id="panel-udp">
+              <form class="sk-tool-form">
+                <label class="sk-form-label">View all UDP sockets</label>
+                <button class="sk-btn-primary w-100 mt-2" type="submit"><i class="fa fa-arrow-down me-2"></i>List UDP Sockets</button>
+              </form>
+            </div>
+
+            <div class="sk-tool-panel" id="panel-listening">
+              <form class="sk-tool-form">
+                <label class="sk-form-label">View all listening ports</label>
+                <button class="sk-btn-primary w-100 mt-2" type="submit"><i class="fa fa-headphones me-2"></i>List Listening Ports</button>
+              </form>
+            </div>
+
+            <div class="sk-tool-panel" id="panel-byprocess">
+              <form class="sk-tool-form">
+                <label class="sk-form-label">PID <span class="text-muted fw-normal">(optional)</span></label>
+                <input type="number" name="pid" class="sk-form-input mb-2" placeholder="e.g. 1234" min="1">
+                <label class="sk-form-label">Port <span class="text-muted fw-normal">(optional)</span></label>
+                <input type="number" name="port" class="sk-form-input mb-3" placeholder="e.g. 80" min="1" max="65535">
+                <button class="sk-btn-primary w-100" type="submit"><i class="fa fa-search me-2"></i>Find Sockets</button>
+              </form>
+            </div>
+
+            <div class="sk-tool-panel" id="panel-stats">
+              <form class="sk-tool-form">
+                <label class="sk-form-label">View connection statistics</label>
+                <button class="sk-btn-primary w-100 mt-2" type="submit"><i class="fa fa-chart-bar me-2"></i>Show Stats</button>
+              </form>
+            </div>
+
+            <div class="sk-tool-panel" id="panel-close">
+              <form class="sk-tool-form">
+                <label class="sk-form-label">PID <span class="text-muted fw-normal">(optional)</span></label>
+                <input type="number" name="pid" class="sk-form-input mb-2" placeholder="e.g. 1234" min="1">
+                <label class="sk-form-label">Port <span class="text-muted fw-normal">(optional)</span></label>
+                <input type="number" name="port" class="sk-form-input mb-3" placeholder="e.g. 80" min="1" max="65535">
+                <div class="alert alert-danger py-2 px-3 mb-3 small" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:var(--sk-red);border-radius:6px;">
+                  <i class="fa fa-exclamation-triangle me-1"></i> Admin only. Requires root privileges.
+                </div>
+                <button class="sk-btn-danger w-100" type="submit"><i class="fa fa-power-off me-2"></i>Close Connection</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-7">
+            <div class="sk-result-viewer">
+              <div class="sk-result-header">
+                <span id="sk-result-title" class="fw-semibold text-sk-cyan">Output</span>
+              </div>
+              <div class="sk-result-body" id="sk-result-body">
+                <span class="text-muted small">Select a socket tool and run it to see output here...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12 col-xl-6">
+    <div class="sk-card">
+      <div class="sk-card-header">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fa fa-trophy text-sk-orange"></i>
+          <span class="fw-semibold">Top Processes by Socket Count</span>
+        </div>
+      </div>
+      <div class="sk-table-wrap" style="max-height:300px">
+        <table class="sk-table">
+          <thead><tr><th>Sockets</th><th>PID</th><th>Process</th></tr></thead>
+          <tbody id="sk-top-proc-body">
+            <tr><td colspan="3" class="text-muted small text-center">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-xl-6">
+    <div class="sk-card">
+      <div class="sk-card-header">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fa fa-info-circle text-sk-teal"></i>
+          <span class="fw-semibold">Socket States Legend</span>
+        </div>
+      </div>
+      <div class="p-3">
+        <div class="d-flex flex-wrap gap-3">
+          <span class="sk-state-badge sk-state-established">ESTABLISHED</span>
+          <span class="sk-state-badge sk-state-listen">LISTEN</span>
+          <span class="sk-state-badge sk-state-time-wait">TIME_WAIT</span>
+          <span class="sk-state-badge sk-state-close-wait">CLOSE_WAIT</span>
+          <span class="sk-state-badge sk-state-other">OTHER</span>
+        </div>
+        <div class="mt-3 text-muted small">
+          <p class="mb-1"><i class="fa fa-circle text-sk-green me-1"></i> <strong>ESTABLISHED</strong> — Active connection</p>
+          <p class="mb-1"><i class="fa fa-circle text-sk-blue me-1"></i> <strong>LISTEN</strong> — Waiting for incoming</p>
+          <p class="mb-1"><i class="fa fa-circle text-sk-orange me-1"></i> <strong>TIME_WAIT</strong> — Closing, packets pending</p>
+          <p class="mb-1"><i class="fa fa-circle text-sk-red me-1"></i> <strong>CLOSE_WAIT</strong> — Waiting for app close</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="sk-toast-container" class="position-fixed top-0 end-0 p-3" style="z-index:9999"></div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sockets.css') }}">
+<script src="{{ url_for('static', filename='js/sockets.js') }}" defer></script>
+{% endblock %}
