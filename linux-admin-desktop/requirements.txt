@@ -1,0 +1,4 @@
+PyQt6>=6.5
+SQLAlchemy>=2.0
+Werkzeug>=3.0
+pytz>=2023.3
