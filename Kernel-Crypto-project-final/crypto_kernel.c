@@ -18,9 +18,9 @@
 #include <linux/uaccess.h>
 #include <linux/crypto.h>
 #include <crypto/skcipher.h>
+#include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <linux/err.h>
-#include <linux/scatterlist.h>
 
 #include "crypto_ioctl.h"
 
@@ -55,7 +55,6 @@ static struct cdev crypto_cdev;
 static struct class *crypto_class;
 static struct device *crypto_device;
 
-/* Module parameters */
 static int major;
 
 /* Forward declarations */
@@ -188,7 +187,7 @@ static int crypto_decrypt(struct crypto_skcipher *tfm,
 	u8 *iv = NULL;
 	u8 *buf = NULL;
 	struct scatterlist sg_src, sg_dst;
-	int ret;
+	int ret, unpadded;
 
 	if (ciphertext_len == 0 || ciphertext_len % AES_BLOCK_SIZE != 0)
 		return -EINVAL;
@@ -222,12 +221,15 @@ static int crypto_decrypt(struct crypto_skcipher *tfm,
 	if (ret)
 		goto out;
 
-	ret = pkcs7_unpad(buf, ciphertext_len);
-	if (ret < 0)
+	unpadded = pkcs7_unpad(buf, ciphertext_len);
+	if (unpadded < 0) {
+		ret = unpadded;
 		goto out;
+	}
 
-	*plaintext_len = (size_t)ret;
+	*plaintext_len = (size_t)unpadded;
 	memcpy(plaintext, buf, *plaintext_len);
+	ret = 0;
 
 out:
 	if (req)
@@ -340,12 +342,11 @@ static long crypto_ioctl(struct file *filp, unsigned int cmd,
 				     k_output, &out_len);
 		if (ret == 0) {
 			cd.output_len = out_len;
-			if (copy_to_user(cd.output, k_output, out_len)) {
+			if (copy_to_user(cd.output, k_output, out_len))
 				ret = -EFAULT;
-			} else if (copy_to_user((void __user *)arg, &cd,
-						sizeof(cd))) {
+			else if (copy_to_user((void __user *)arg, &cd,
+					      sizeof(cd)))
 				ret = -EFAULT;
-			}
 		}
 		break;
 	}
@@ -355,12 +356,11 @@ static long crypto_ioctl(struct file *filp, unsigned int cmd,
 				     k_output, &out_len);
 		if (ret == 0) {
 			cd.output_len = out_len;
-			if (copy_to_user(cd.output, k_output, out_len)) {
+			if (copy_to_user(cd.output, k_output, out_len))
 				ret = -EFAULT;
-			} else if (copy_to_user((void __user *)arg, &cd,
-						sizeof(cd))) {
+			else if (copy_to_user((void __user *)arg, &cd,
+					      sizeof(cd)))
 				ret = -EFAULT;
-			}
 		}
 		break;
 	}
