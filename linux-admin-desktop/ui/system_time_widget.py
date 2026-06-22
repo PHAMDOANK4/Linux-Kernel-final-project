@@ -1,10 +1,9 @@
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QTextEdit, QMessageBox, QFrame, QGroupBox,
-    QFormLayout, QTimeEdit, QDateEdit, QComboBox,
-    QSizePolicy, QSpacerItem,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QDateTimeEdit,
+    QPushButton, QTextEdit, QMessageBox, QFrame, QComboBox,
+    QCompleter,
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
@@ -14,123 +13,127 @@ from app.logging import logger
 import pytz
 
 
+CARD_STYLE = """
+    QFrame {{
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        padding: {padding};
+    }}
+"""
+
+BTN_PRIMARY = """
+    QPushButton {{
+        background: {bg}; color: white;
+        padding: 8px 18px; border-radius: 6px;
+        font-weight: bold; font-size: 12px;
+    }}
+    QPushButton:hover {{ background: {hover}; }}
+"""
+
+
+def _parse_timedatectl(output: str) -> dict:
+    info = {"timezone": "", "ntp": ""}
+    for line in output.splitlines():
+        line = line.strip()
+        if line.startswith("Time zone:"):
+            info["timezone"] = line.replace("Time zone:", "").strip()
+        elif line.startswith("NTP service:"):
+            info["ntp"] = line.replace("NTP service:", "").strip()
+    return info
+
+
 class SystemTimeWidget(QWidget):
     def __init__(self, auth_manager):
         super().__init__()
         self.auth = auth_manager
         self.executor = ScriptExecutor()
+        self._status = {"timezone": "", "ntp": ""}
         self._setup_ui()
-        self._refresh_timer()
-        self._timer = QTimer()
-        self._timer.timeout.connect(self._refresh_timer)
-        self._timer.start(2000)
+        self._refresh_clock()
+        self._refresh_status()
+
+        self._clock_timer = QTimer()
+        self._clock_timer.timeout.connect(self._refresh_clock)
+        self._clock_timer.start(1000)
+
+        self._status_timer = QTimer()
+        self._status_timer.timeout.connect(self._refresh_status)
+        self._status_timer.start(30000)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
 
         title = QLabel("System Time")
         title.setFont(QFont("", 20, QFont.Weight.Bold))
         title.setStyleSheet("color: #1f2933;")
         layout.addWidget(title)
 
-        info_card = QFrame()
-        info_card.setStyleSheet("""
-            QFrame { background: white; border-radius: 12px;
-                padding: 20px; border: 1px solid #e2e8f0; }
+        clock_card = QFrame()
+        clock_card.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #0f172a, stop:1 #1e293b);
+                border-radius: 16px;
+                padding: 28px 32px;
+            }
         """)
-        info_layout = QVBoxLayout()
+        clock_layout = QVBoxLayout()
+        clock_layout.setSpacing(4)
 
         self.time_display = QLabel()
-        self.time_display.setFont(QFont("monospace", 28, QFont.Weight.Bold))
-        self.time_display.setStyleSheet("color: #0b7285;")
+        self.time_display.setFont(QFont("monospace", 44, QFont.Weight.Bold))
+        self.time_display.setStyleSheet("color: #38bdf8;")
         self.time_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        info_layout.addWidget(self.time_display)
+        clock_layout.addWidget(self.time_display)
 
-        info_card.setLayout(info_layout)
-        layout.addWidget(info_card)
+        self.date_display = QLabel()
+        self.date_display.setFont(QFont("", 14))
+        self.date_display.setStyleSheet("color: #94a3b8;")
+        self.date_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        clock_layout.addWidget(self.date_display)
+
+        badge_row = QHBoxLayout()
+        badge_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        badge_row.setSpacing(8)
+
+        self.tz_badge = QLabel()
+        self.tz_badge.setStyleSheet("""
+            QLabel {
+                background: rgba(56, 189, 248, 0.15);
+                color: #7dd3fc; padding: 3px 12px;
+                border-radius: 10px; font-size: 11px;
+                font-weight: bold;
+            }
+        """)
+        badge_row.addWidget(self.tz_badge)
+
+        self.ntp_badge = QLabel()
+        self.ntp_badge.setStyleSheet("""
+            QLabel {
+                background: rgba(74, 222, 128, 0.15);
+                color: #86efac; padding: 3px 12px;
+                border-radius: 10px; font-size: 11px;
+                font-weight: bold;
+            }
+        """)
+        badge_row.addWidget(self.ntp_badge)
+
+        clock_layout.addLayout(badge_row)
+        clock_card.setLayout(clock_layout)
+        layout.addWidget(clock_card)
 
         if self.auth.is_admin:
-            time_group = QGroupBox("Set Time / Timezone")
-            time_group.setStyleSheet("""
-                QGroupBox {
-                    font-weight: bold; border: 2px solid #e2e8f0;
-                    border-radius: 8px; margin-top: 8px; padding: 16px;
-                    background: white;
-                }
-                QGroupBox::title { subcontrol-origin: margin; padding: 0 8px; }
-            """)
-            time_layout = QVBoxLayout()
+            controls_layout = QHBoxLayout()
+            controls_layout.setSpacing(16)
 
-            set_time_row = QHBoxLayout()
-            self.date_input = type('obj', (object,), {'date': QDateEdit, 'time': QTimeEdit})()
+            controls_layout.addWidget(self._make_time_card(), 1)
+            controls_layout.addWidget(self._make_tz_card(), 1)
+            layout.addLayout(controls_layout)
 
-            self.new_time_input = QLineEdit()
-            self.new_time_input.setPlaceholderText("e.g. 2026-06-14 14:30:00")
-            self.new_time_input.setStyleSheet("padding: 6px; border: 1px solid #ddd; border-radius: 4px;")
-            set_time_row.addWidget(self.new_time_input, 1)
-
-            set_time_btn = QPushButton("Set Time")
-            set_time_btn.setStyleSheet("""
-                QPushButton { background: #0b7285; color: white;
-                    padding: 6px 16px; border-radius: 5px; font-weight: bold; }
-                QPushButton:hover { background: #1565c0; }
-            """)
-            set_time_btn.clicked.connect(self._set_time)
-            set_time_row.addWidget(set_time_btn)
-            time_layout.addLayout(set_time_row)
-
-            tz_row = QHBoxLayout()
-            self.tz_combo = QComboBox()
-            self.tz_combo.setEditable(True)
-            for tz in pytz.common_timezones:
-                self.tz_combo.addItem(tz)
-            self.tz_combo.setStyleSheet("padding: 6px; border: 1px solid #ddd; border-radius: 4px;")
-            tz_row.addWidget(self.tz_combo, 1)
-
-            set_tz_btn = QPushButton("Set Timezone")
-            set_tz_btn.setStyleSheet("""
-                QPushButton { background: #f59e0b; color: white;
-                    padding: 6px 16px; border-radius: 5px; font-weight: bold; }
-                QPushButton:hover { background: #d97706; }
-            """)
-            set_tz_btn.clicked.connect(self._set_timezone)
-            tz_row.addWidget(set_tz_btn)
-            time_layout.addLayout(tz_row)
-
-            ntp_row = QHBoxLayout()
-            enable_ntp_btn = QPushButton("Enable NTP")
-            enable_ntp_btn.setStyleSheet("""
-                QPushButton { background: #10b981; color: white;
-                    padding: 8px 16px; border-radius: 5px; font-weight: bold; }
-                QPushButton:hover { background: #059669; }
-            """)
-            enable_ntp_btn.clicked.connect(lambda: self._run_time_script("enable_ntp.sh"))
-            ntp_row.addWidget(enable_ntp_btn)
-
-            disable_ntp_btn = QPushButton("Disable NTP")
-            disable_ntp_btn.setStyleSheet("""
-                QPushButton { background: #ef4444; color: white;
-                    padding: 8px 16px; border-radius: 5px; font-weight: bold; }
-                QPushButton:hover { background: #dc2626; }
-            """)
-            disable_ntp_btn.clicked.connect(lambda: self._run_time_script("disable_ntp.sh"))
-            ntp_row.addWidget(disable_ntp_btn)
-
-            sync_ntp_btn = QPushButton("Sync NTP")
-            sync_ntp_btn.setStyleSheet("""
-                QPushButton { background: #6366f1; color: white;
-                    padding: 8px 16px; border-radius: 5px; font-weight: bold; }
-                QPushButton:hover { background: #4f46e5; }
-            """)
-            sync_ntp_btn.clicked.connect(lambda: self._run_time_script("sync_time.sh"))
-            ntp_row.addWidget(sync_ntp_btn)
-
-            ntp_row.addSpacerItem(QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
-            time_layout.addLayout(ntp_row)
-
-            time_group.setLayout(time_layout)
-            layout.addWidget(time_group)
+            layout.addWidget(self._make_ntp_card())
 
         self.output = QTextEdit()
         self.output.setReadOnly(True)
@@ -142,15 +145,176 @@ class SystemTimeWidget(QWidget):
                 font-family: monospace; font-size: 12px;
             }
         """)
-        layout.addWidget(self.output, 1)
+        layout.addWidget(self.output)
+
+    def _card(self, title_text):
+        card = QFrame()
+        card.setStyleSheet(CARD_STYLE.format(padding="16px"))
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 12, 16, 16)
+        card_layout.setSpacing(10)
+
+        lbl = QLabel(title_text)
+        lbl.setFont(QFont("", 12, QFont.Weight.Bold))
+        lbl.setStyleSheet("color: #334155; border: none;")
+        card_layout.addWidget(lbl)
+
+        return card, card_layout
+
+    def _make_time_card(self):
+        card, card_layout = self._card("Set Date & Time")
+
+        self.datetime_input = QDateTimeEdit()
+        self.datetime_input.setDateTime(datetime.now())
+        self.datetime_input.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+        self.datetime_input.setCalendarPopup(True)
+        self.datetime_input.setStyleSheet("""
+            QDateTimeEdit {
+                padding: 8px; border: 2px solid #e2e8f0;
+                border-radius: 6px; font-size: 13px;
+            }
+            QDateTimeEdit:focus { border-color: #0b7285; }
+        """)
+        card_layout.addWidget(self.datetime_input)
+
+        row = QHBoxLayout()
+        row.addStretch()
+        set_btn = QPushButton("Set Time")
+        set_btn.setStyleSheet(BTN_PRIMARY.format(bg="#0b7285", hover="#1565c0"))
+        set_btn.clicked.connect(self._set_time)
+        row.addWidget(set_btn)
+        card_layout.addLayout(row)
+
+        return card
+
+    def _make_tz_card(self):
+        card, card_layout = self._card("Timezone")
+
+        self.tz_combo = QComboBox()
+        self.tz_combo.setEditable(True)
+        self.tz_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.tz_combo.setStyleSheet("""
+            QComboBox {
+                padding: 8px; border: 2px solid #e2e8f0;
+                border-radius: 6px; font-size: 13px;
+            }
+            QComboBox:focus { border-color: #0b7285; }
+            QComboBox::drop-down {
+                border: none; width: 30px;
+            }
+            QComboBox QAbstractItemView {
+                padding: 4px;
+                min-width: 280px;
+            }
+            QComboBox QAbstractItemView::item {
+                padding: 4px 8px;
+            }
+        """)
+
+        groups: dict[str, list[str]] = {}
+        for tz in pytz.common_timezones:
+            parts = tz.split("/", 1)
+            region = parts[0] if len(parts) > 1 else "Other"
+            groups.setdefault(region, []).append(tz)
+
+        all_items: list[str] = []
+        for region in sorted(groups):
+            header = f"── {region} ──"
+            self.tz_combo.addItem(header)
+            all_items.append(header)
+            for tz in sorted(groups[region]):
+                self.tz_combo.addItem(f"    {tz}")
+                all_items.append(f"    {tz}")
+
+        completer = QCompleter(all_items, self)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.tz_combo.setCompleter(completer)
+
+        card_layout.addWidget(self.tz_combo)
+
+        row = QHBoxLayout()
+        row.addStretch()
+        set_tz_btn = QPushButton("Set Timezone")
+        set_tz_btn.setStyleSheet(BTN_PRIMARY.format(bg="#f59e0b", hover="#d97706"))
+        set_tz_btn.clicked.connect(self._set_timezone)
+        row.addWidget(set_tz_btn)
+        card_layout.addLayout(row)
+
+        return card
+
+    def _make_ntp_card(self):
+        card = QFrame()
+        card.setStyleSheet(CARD_STYLE.format(padding="12px 16px"))
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 12, 16, 16)
+        card_layout.setSpacing(10)
+
+        lbl = QLabel("NTP Synchronization")
+        lbl.setFont(QFont("", 12, QFont.Weight.Bold))
+        lbl.setStyleSheet("color: #334155; border: none;")
+        card_layout.addWidget(lbl)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+
+        enable_btn = QPushButton("Enable")
+        enable_btn.setStyleSheet(BTN_PRIMARY.format(bg="#10b981", hover="#059669"))
+        enable_btn.clicked.connect(lambda: self._run_time_script("enable_ntp.sh"))
+        btn_row.addWidget(enable_btn)
+
+        disable_btn = QPushButton("Disable")
+        disable_btn.setStyleSheet(BTN_PRIMARY.format(bg="#ef4444", hover="#dc2626"))
+        disable_btn.clicked.connect(lambda: self._run_time_script("disable_ntp.sh"))
+        btn_row.addWidget(disable_btn)
+
+        sync_btn = QPushButton("Sync Now")
+        sync_btn.setStyleSheet(BTN_PRIMARY.format(bg="#6366f1", hover="#4f46e5"))
+        sync_btn.clicked.connect(lambda: self._run_time_script("sync_time.sh"))
+        btn_row.addWidget(sync_btn)
+
+        btn_row.addStretch()
+        card_layout.addLayout(btn_row)
+
+        return card
 
     def on_activate(self):
-        self._refresh_timer()
+        self._refresh_clock()
+        self._refresh_status()
 
-    def _refresh_timer(self):
+    def _refresh_clock(self):
+        now = datetime.now()
+        self.time_display.setText(now.strftime("%H:%M:%S"))
+        self.date_display.setText(now.strftime("%A, %d %B %Y"))
+
+    def _select_tz_in_combo(self, tz_name: str):
+        for i in range(self.tz_combo.count()):
+            item = self.tz_combo.itemText(i).strip()
+            if item == tz_name:
+                self.tz_combo.setCurrentIndex(i)
+                return
+
+    def _refresh_status(self):
         success, output = self.executor.run("show_time.sh")
         if success:
-            self.time_display.setText(output.strip())
+            info = _parse_timedatectl(output)
+            self._status = info
+            if info["timezone"]:
+                self.tz_badge.setText(f"  {info['timezone']}  ")
+                self._select_tz_in_combo(info["timezone"])
+            if info["ntp"]:
+                active = info["ntp"] == "active"
+                self.ntp_badge.setText(f"  NTP: {'ON' if active else 'OFF'}  ")
+                color = "#86efac" if active else "#fca5a5"
+                bg = "rgba(74, 222, 128, 0.15)" if active else "rgba(248, 113, 113, 0.15)"
+                self.ntp_badge.setStyleSheet(f"""
+                    QLabel {{
+                        background: {bg};
+                        color: {color}; padding: 3px 12px;
+                        border-radius: 10px; font-size: 11px;
+                        font-weight: bold;
+                    }}
+                """)
 
     def _log_action(self, action, success, detail):
         logger.log(self.auth.username, f"time:{action}", success, detail)
@@ -162,18 +326,18 @@ class SystemTimeWidget(QWidget):
             self.output.append(f"✓ {output}\n")
         else:
             self.output.append(f"✗ {output}\n")
-        self._refresh_timer()
+        self._refresh_clock()
+        self._refresh_status()
 
     def _set_time(self):
-        new_time = self.new_time_input.text().strip()
-        if not new_time:
-            QMessageBox.warning(self, "Error", "Please enter a date/time.")
-            return
+        dt = self.datetime_input.dateTime().toPyDateTime()
+        new_time = dt.strftime("%Y-%m-%d %H:%M:%S")
         self._run_time_script("set_time.sh", [new_time])
 
     def _set_timezone(self):
-        tz = self.tz_combo.currentText().strip()
-        if not tz:
-            QMessageBox.warning(self, "Error", "Please select a timezone.")
+        raw = self.tz_combo.currentText()
+        tz = raw.strip()
+        if not tz or tz.startswith("──"):
+            QMessageBox.warning(self, "Error", "Please select a valid timezone (not a group header).")
             return
         self._run_time_script("set_timezone.sh", [tz])

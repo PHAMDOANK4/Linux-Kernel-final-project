@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 import sys
 import os
-from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QIcon
 
-from app.database import init_db
 from app.auth import AuthManager
-from ui.login_window import LoginWindow
+from app.database import init_db
 from ui.main_window import MainWindow
 
 
@@ -22,14 +19,9 @@ def main():
     app.setStyle("Fusion")
 
     auth = AuthManager()
-
-    login = LoginWindow(auth)
-    if login.exec() == LoginWindow.DialogCode.Accepted:
-        window = MainWindow(auth)
-        window.show()
-        sys.exit(app.exec())
-    else:
-        sys.exit(0)
+    window = MainWindow(auth)
+    window.show()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

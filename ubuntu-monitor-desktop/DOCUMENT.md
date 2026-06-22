@@ -393,6 +393,112 @@ Gửi tin nhắn:
 - `write()` → dữ liệu đi qua TCP stack: `tcp_sendmsg()` → chia segment → gửi qua network layer
 - `readyRead` → kernel đã nhận dữ liệu và đặt vào `sk_receive_queue` (struct sock), userspace có thể đọc
 
+### 5.3.3. Cách Python tương tác với socket trong kernel
+
+Chương trình sử dụng **2 cơ chế** để tương tác với socket kernel:
+
+#### Cơ chế 1: Đọc /proc/net/ (Socket Monitor — thụ động)
+
+Python đọc file text do kernel tạo động — không tạo socket thật:
+
+```
+Python (userspace)                         Kernel
+──────────────────────────────────────────────────────────
+open("/proc/net/tcp")           → sys_open() → proc_reg_open()
+                                     → tcp4_seq_show() được đăng ký
+                                       làm callback cho seq_file
+                                 
+read(fd, buf, 4096)             → sys_read() → seq_read()
+                                     → tcp4_seq_show() duyệt
+                                       tcp_hashinfo (bảng hash
+                                       chứa mọi struct sock đang mở)
+                                     → format output thành dòng text
+                                 
+parse dòng text trả về:
+  "  0: 0100007F:0035 ..."
+  → _decode_ip_port("0100007F:0035")
+      → bytes.fromhex("0100007F")
+      → reversed → [127,0,0,1]
+      → int("0035", 16) → 53
+      → "127.0.0.1:53"
+  → _tcp_state_name(0x0A)
+      → states[10] = "LISTEN"
+```
+
+**File trong kernel source:**
+- `/proc/net/tcp` → `net/ipv4/tcp_ipv4.c:tcp4_seq_show()` — đọc `struct sock` từ `tcp_hashinfo`
+- `/proc/net/udp` → `net/ipv4/udp.c:udp4_seq_show()`
+- `/proc/net/unix` → `net/unix/af_unix.c:unix_seq_show()`
+
+Khi đọc `/proc/net/tcp`, kernel:
+1. Duyệt bảng hash `tcp_hashinfo` (chứa tất cả TCP sockets đang mở)
+2. Với mỗi `struct sock`, đọc: `sk_rcv_saddr` (IP nguồn), `sk_daddr` (IP đích), `sk_num` (port nguồn), `sk_dport` (port đích), `sk_state` (trạng thái TCP), `sk_uid` (người dùng), `sk_inode` (inode number)
+3. Format các giá trị hex → ghi vào bộ đệm `seq_file`
+4. `copy_to_user()` đưa dữ liệu từ kernel space → userspace
+
+#### Cơ chế 2: QTcpServer/QTcpSocket (Socket Chat — chủ động)
+
+Python tạo socket thật qua PyQt6 → Qt C++ → POSIX socket API → kernel:
+
+```
+Python layer              PyQt6 C++ layer          Kernel
+──────────────────────────────────────────────────────────────
+QTcpServer.listen(8888)
+  ↓                         ↓
+                     QTcpServer::listen()
+                       ↓                       sys_socket(AF_INET,
+                       socket(AF_INET,           SOCK_STREAM, 0)
+                       SOCK_STREAM, 0)            → socket(BPF)
+                                                   → struct socket
+                                                   → struct sock
+                       ↓                       sys_bind(3, sa, 16)
+                       bind(3, port=8888)         → sock->sk_num = 8888
+                                                   → TCP_CLOSE
+                       ↓                       sys_listen(3, 50)
+                       listen(3, 50)              → sock->sk_state
+                                                   = TCP_LISTEN
+                       ↓
+                thêm vào event loop (poll/epoll)
+                
+QTcpSocket.connectToHost
+  ("127.0.0.1", 8888)
+                       ↓
+                 connectToHost()
+                       ↓                       sys_connect(3, sa, 16)
+                       connect(3)                 → 3-way handshake:
+                                                    SYN → SYN-ACK → ACK
+                                                  → sock->sk_state
+                                                    = TCP_ESTABLISHED
+                       ↓
+                poll() thông báo connected
+                  → emit connected()
+
+socket.write("Hello")
+                       ↓
+                 write(3, "Hello", 5)         sys_sendmsg()
+                                                  → tcp_sendmsg()
+                                                  → chia segment (MSS)
+                                                  → sndbuf → tcp_transmit_skb()
+                                                  → IP → NIC
+
+readyRead signal ← emit readyRead()
+                       ↑
+                 poll() báo có dữ liệu
+                       ↑
+                 dữ liệu đến             TCP segment từ NIC
+                                          → IRQ → tcp_v4_rcv()
+                                          → tcp_data_queue()
+                                          → đặt vào sk_receive_queue
+                                          → wake up process (poll)
+```
+
+**Tóm lại:**
+
+| Cơ chế | Kernel interaction | Mục đích | Đường đi |
+|---|---|---|---|
+| **Đọc /proc/net/** | Đọc file procfs | Quan sát socket thụ động | Python → open/read → VFS → procfs → tcp4_seq_show → tcp_hashinfo |
+| **QTcpServer/Socket** | System call thật | Tạo socket thật để chat | Python → PyQt6 → Qt C++ → socket/bind/listen/connect/sendmsg → kernel TCP stack |
+
 ## 5.4. Network Monitor (`app/network_monitor.py` + `ui/network_tab.py`)
 
 ### 5.4.1. Interface Statistics

@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
     QTextEdit, QMessageBox, QFrame, QInputDialog, QFileDialog,
-    QSizePolicy, QSpacerItem, QMenu,
+    QSizePolicy, QSpacerItem, QMenu, QDialog,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QAction
@@ -28,6 +28,46 @@ class ScriptThread(QThread):
         self.finished.emit(success, output)
 
 
+class FileContentDialog(QDialog):
+    def __init__(self, filepath, content, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Viewing: {filepath}")
+        self.resize(800, 600)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        text = QTextEdit()
+        text.setReadOnly(True)
+        text.setPlainText(content)
+        text.setFont(QFont("monospace", 11))
+        text.setStyleSheet("""
+            QTextEdit {
+                background: #1e293b; color: #f8fafc;
+                padding: 16px; border: none;
+            }
+        """)
+        layout.addWidget(text)
+
+        bar = QFrame()
+        bar.setStyleSheet("background: #0f172a; padding: 8px;")
+        bar_layout = QHBoxLayout(bar)
+        bar_layout.setContentsMargins(12, 4, 12, 4)
+        info = QLabel(f"  {filepath}  —  {len(content.splitlines())} lines")
+        info.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        bar_layout.addWidget(info)
+        bar_layout.addSpacerItem(QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        close_btn = QPushButton("Close")
+        close_btn.setStyleSheet("""
+            QPushButton { background: #334155; color: white;
+                padding: 4px 16px; border-radius: 4px; }
+            QPushButton:hover { background: #475569; }
+        """)
+        close_btn.clicked.connect(self.accept)
+        bar_layout.addWidget(close_btn)
+
+        layout.addWidget(bar)
+
+
 class FileManagerWidget(QWidget):
     def __init__(self, auth_manager):
         super().__init__()
@@ -40,6 +80,7 @@ class FileManagerWidget(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(10)
 
         title = QLabel("File Management")
         title.setFont(QFont("", 20, QFont.Weight.Bold))
@@ -75,15 +116,14 @@ class FileManagerWidget(QWidget):
 
         layout.addLayout(nav)
 
-        actions = QHBoxLayout()
-        actions.setSpacing(6)
-
         btn_style = """
             QPushButton { background: #e2e8f0; color: #1e293b;
-                padding: 6px 14px; border-radius: 5px; font-size: 12px; }
+                padding: 5px 10px; border-radius: 5px; font-size: 11px; }
             QPushButton:hover { background: #cbd5e1; }
         """
 
+        row1 = QHBoxLayout()
+        row1.setSpacing(5)
         for text, cb in [
             ("New File", self._create_file),
             ("New Folder", self._create_folder),
@@ -91,27 +131,29 @@ class FileManagerWidget(QWidget):
             ("Copy", self._copy),
             ("Move", self._move),
             ("Delete", self._delete),
-            ("Search", self._search),
-            ("Chmod", self._chmod),
-            ("Chown", self._chown),
         ]:
             btn = QPushButton(text)
             btn.setStyleSheet(btn_style)
             btn.clicked.connect(cb)
-            actions.addWidget(btn)
+            row1.addWidget(btn)
 
-        actions.addSpacerItem(QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        row2 = QHBoxLayout()
+        row2.setSpacing(5)
+        for text, cb in [
+            ("Search", self._search),
+            ("View Content", self._view_content),
+            ("Info", self._view_info),
+            ("Chmod", self._chmod),
+            ("Chown", self._chown),
+            ("Refresh", self._load_files),
+        ]:
+            btn = QPushButton(text)
+            btn.setStyleSheet(btn_style)
+            btn.clicked.connect(cb)
+            row2.addWidget(btn)
 
-        refresh_btn = QPushButton("Refresh")
-        refresh_btn.setStyleSheet("""
-            QPushButton { background: #0b7285; color: white;
-                padding: 6px 14px; border-radius: 5px; font-weight: bold; }
-            QPushButton:hover { background: #1565c0; }
-        """)
-        refresh_btn.clicked.connect(self._load_files)
-        actions.addWidget(refresh_btn)
-
-        layout.addLayout(actions)
+        layout.addLayout(row1)
+        layout.addLayout(row2)
 
         self.table = QTableWidget()
         self.table.setColumnCount(3)
@@ -209,8 +251,11 @@ class FileManagerWidget(QWidget):
             return
         path = self.table.item(row, 2).text() if self.table.item(row, 2) else ""
         name = self.table.item(row, 1).text() if self.table.item(row, 1) else ""
+        is_dir = self.table.item(row, 0).text() == "DIR" if self.table.item(row, 0) else False
 
         menu = QMenu(self)
+        view_content_action = QAction("View Content", self)
+        info_action = QAction("Info", self)
         rename_action = QAction("Rename", self)
         copy_action = QAction("Copy", self)
         move_action = QAction("Move", self)
@@ -218,6 +263,8 @@ class FileManagerWidget(QWidget):
         chmod_action = QAction("Chmod", self)
         chown_action = QAction("Chown", self)
 
+        view_content_action.triggered.connect(lambda: self._view_content_with(path))
+        info_action.triggered.connect(lambda: self._view_info_with(path))
         rename_action.triggered.connect(lambda: self._rename_with(path))
         copy_action.triggered.connect(lambda: self._copy_with(path))
         move_action.triggered.connect(lambda: self._move_with(path))
@@ -225,6 +272,10 @@ class FileManagerWidget(QWidget):
         chmod_action.triggered.connect(lambda: self._chmod_with(path))
         chown_action.triggered.connect(lambda: self._chown_with(path))
 
+        if not is_dir:
+            menu.addAction(view_content_action)
+        menu.addAction(info_action)
+        menu.addSeparator()
         menu.addAction(rename_action)
         menu.addAction(copy_action)
         menu.addAction(move_action)
@@ -306,6 +357,36 @@ class FileManagerWidget(QWidget):
                 self.output.append(f"Result:\n{output}\n")
             else:
                 self.output.append(f"✗ {output}\n")
+
+    def _view_content_with(self, path):
+        success, output = self.executor.run("read_file.sh", [path])
+        if success:
+            dialog = FileContentDialog(path, output, self)
+            dialog.exec()
+        else:
+            QMessageBox.warning(self, "Error", output)
+
+    def _view_content(self):
+        path = self._get_selected_path()
+        name = self.table.item(self.table.currentRow(), 1).text() if self.table.currentRow() >= 0 else ""
+        is_dir = self.table.item(self.table.currentRow(), 0).text() == "DIR" if self.table.currentRow() >= 0 else False
+        if path and not is_dir:
+            self._view_content_with(path)
+        elif is_dir:
+            QMessageBox.information(self, "Info", f"'{name}' is a directory. Use 'Info' to see details.")
+
+    def _view_info_with(self, path):
+        self.output.append(f"$ file_info.sh {path}\n")
+        success, output = self.executor.run("file_info.sh", [path])
+        if success:
+            self.output.append(f"✓\n{output}\n")
+        else:
+            self.output.append(f"✗ {output}\n")
+
+    def _view_info(self):
+        path = self._get_selected_path()
+        if path:
+            self._view_info_with(path)
 
     def _chmod_with(self, target):
         mode, ok = QInputDialog.getText(self, "Chmod", "Permission mode (e.g. 755):")

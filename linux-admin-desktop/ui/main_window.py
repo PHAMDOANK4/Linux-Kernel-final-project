@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QListWidget, QStackedWidget, QMessageBox,
-    QFrame, QApplication, QSizePolicy, QSpacerItem,
+    QListWidget, QStackedWidget, QFrame, QSizePolicy, QSpacerItem,
+    QScrollArea,
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
@@ -10,7 +10,6 @@ from ui.file_manager_widget import FileManagerWidget
 from ui.task_scheduler_widget import TaskSchedulerWidget
 from ui.system_time_widget import SystemTimeWidget
 from ui.package_manager_widget import PackageManagerWidget
-from ui.logs_viewer_widget import LogsViewerWidget
 
 
 class MainWindow(QMainWindow):
@@ -18,7 +17,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.auth = auth_manager
         self.setWindowTitle("Linux Administration Desktop")
-        self.resize(1100, 720)
+        self.resize(960, 720)
 
         self._setup_ui()
         self._populate_nav()
@@ -56,17 +55,6 @@ class MainWindow(QMainWindow):
         """)
         header_layout.addWidget(self.user_label)
 
-        logout_btn = QPushButton("Logout")
-        logout_btn.setStyleSheet("""
-            QPushButton {
-                background: rgba(255,255,255,0.2); color: white;
-                padding: 6px 16px; border-radius: 6px; font-size: 13px;
-            }
-            QPushButton:hover { background: rgba(255,255,255,0.35); }
-        """)
-        logout_btn.clicked.connect(self._handle_logout)
-        header_layout.addWidget(logout_btn)
-
         main_layout.addWidget(header)
 
         body = QWidget()
@@ -75,7 +63,7 @@ class MainWindow(QMainWindow):
         body_layout.setSpacing(0)
 
         sidebar = QFrame()
-        sidebar.setFixedWidth(200)
+        sidebar.setFixedWidth(180)
         sidebar.setStyleSheet("""
             QFrame {
                 background: #1e293b;
@@ -83,18 +71,18 @@ class MainWindow(QMainWindow):
             }
         """)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(0, 8, 0, 8)
-        sidebar_layout.setSpacing(2)
+        sidebar_layout.setContentsMargins(0, 6, 0, 6)
+        sidebar_layout.setSpacing(1)
 
         self.nav_list = QListWidget()
         self.nav_list.setStyleSheet("""
             QListWidget {
                 background: transparent; border: none;
-                font-size: 14px; color: #cbd5e1;
+                font-size: 13px; color: #cbd5e1;
             }
             QListWidget::item {
-                padding: 12px 16px; border-radius: 6px;
-                margin: 2px 8px;
+                padding: 10px 14px; border-radius: 5px;
+                margin: 1px 6px;
             }
             QListWidget::item:selected {
                 background: #0b7285; color: white;
@@ -108,9 +96,30 @@ class MainWindow(QMainWindow):
 
         body_layout.addWidget(sidebar)
 
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll.setStyleSheet("""
+            QScrollArea { border: none; background: #f4f7fb; }
+            QScrollBar:vertical {
+                background: #e2e8f0; width: 6px;
+                border-radius: 3px;
+            }
+            QScrollBar::handle:vertical {
+                background: #94a3b8; border-radius: 3px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover { background: #64748b; }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0; background: none;
+            }
+        """)
+
         self.stack = QStackedWidget()
-        self.stack.setStyleSheet("background: #f4f7fb;")
-        body_layout.addWidget(self.stack, 1)
+        self.stack.setStyleSheet("background: transparent;")
+        self.scroll.setWidget(self.stack)
+
+        body_layout.addWidget(self.scroll, 1)
 
         main_layout.addWidget(body, 1)
 
@@ -144,9 +153,7 @@ class MainWindow(QMainWindow):
 
         if self.auth.is_admin:
             self.pages.append("Task Scheduler")
-            self.pages.append("Audit Logs")
             self.page_widgets.append(TaskSchedulerWidget(self.auth))
-            self.page_widgets.append(LogsViewerWidget(self.auth))
 
         for w in self.page_widgets:
             self.stack.addWidget(w)
@@ -160,12 +167,3 @@ class MainWindow(QMainWindow):
             if hasattr(widget, "on_activate"):
                 widget.on_activate()
             self.stack.setCurrentWidget(widget)
-
-    def _handle_logout(self):
-        reply = QMessageBox.question(
-            self, "Logout", "Are you sure you want to logout?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            self.auth.logout()
-            self.close()
