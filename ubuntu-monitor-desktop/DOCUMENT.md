@@ -70,6 +70,7 @@
 | F13 | Audit Log | Ghi lại thao tác người dùng (kill process, ping) |
 | F14 | Real-time Refresh | Tự động cập nhật dữ liệu mỗi 2-3 giây |
 | F15 | Dark Theme | Giao diện tối với accent xanh dương |
+| F16 | Socket Chat | Tạo TCP server/client để chat real-time qua QTcpServer/QTcpSocket |
 
 ## 2.2. Yêu cầu phi chức năng
 
@@ -89,14 +90,17 @@
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                     UI Layer (PyQt6)                      │
-│  ┌─────────────┬──────────┬────────────┬──────────────┐  │
-│  │ ProcessTab  │ FileTab  │ SocketTab  │ NetworkTab   │  │
-│  │             │          │            │              │  │
-│  │ - QTable    │ - QTree  │ - QTable   │ - QTabWidget │  │
-│  │ - QTimer    │ - Split  │ - QTimer   │ - Interface  │  │
-│  │ - Summary   │ - Pre-   │ - Filter   │ - Route      │  │
-│  │   Cards     │   view   │   Combo    │ - Ping Tab   │  │
-│  └──────┬──────┴─────┬────┴─────┬──────┴──────┬───────┘  │
+│  ┌─────────────┬──────────┬────────────────┬──────────────┐  │
+│  │ ProcessTab  │ FileTab  │   SocketTab    │ NetworkTab   │  │
+│  │             │          │  ┌──────────┐  │              │  │
+│  │ - QTable    │ - QTree  │  │ Monitor  │  │ - QTabWidget │  │
+│  │ - QTimer    │ - Split  │  │ (procfs) │  │ - Interface  │  │
+│  │ - Summary   │ - Pre-   │  ├──────────┤  │ - Route      │  │
+│  │   Cards     │   view   │  │ Chat     │  │ - Ping Tab   │  │
+│  │             │          │  │(TCP srv/ │  │              │  │
+│  │             │          │  │ client)  │  │              │  │
+│  │             │          │  └──────────┘  │              │  │
+│  └──────┬──────┴─────┬────┴───────┬────────┴──────┬───────┘  │
 │         │            │          │             │          │
 │         ▼            ▼          ▼             ▼          │
 │  ┌──────────────────────────────────────────────────┐    │
@@ -149,7 +153,8 @@ ubuntu-monitor-desktop/
 │   ├── main_window.py       # QMainWindow (tabs, menu, status)
 │   ├── process_tab.py       # Process tab widget
 │   ├── file_tab.py          # File browser tab
-│   ├── socket_tab.py        # Socket monitor tab
+│   ├── socket_tab.py        # Socket monitor tab (Monitor + Chat sub-tabs)
+│   ├── chat_tab.py          # TCP server/client chat widget
 │   └── network_tab.py       # Network monitor tab
 ├── logs/
 │   └── audit.log            # Audit trail
@@ -215,6 +220,10 @@ ubuntu-monitor-desktop/
     │               │    │  ├───────────────┤   │   │               │
     │               │    │  │ Filter by     │   │   │               │
     │               │    │  │ Protocol      │   │   │               │
+    │               │    │  ├───────────────┤   │   │               │
+    │               │    │  │ Chat (TCP    │   │   │               │
+    │               │    │  │ Server/      │   │   │               │
+    │               │    │  │ Client)      │   │   │               │
     │               │    │  └───────────────┘   │   │               │
     │               │    └─────────────────────┘   │               │
     │               │                               │               │
@@ -256,7 +265,17 @@ ubuntu-monitor-desktop/
 | **Mô tả** | Người dùng duyệt cây thư mục và xem thông tin file |
 | **Luồng chính** | 1. Tab File được chọn<br>2. Cây thư mục hiển thị ở panel trái<br>3. Double-click directory → load nội dung<br>4. Double-click file → hiển thị stat detail + preview |
 
-### UC04: Ping Host
+### UC04: Socket Chat
+
+| Mục | Mô tả |
+|---|---|
+| **Mô tả** | Người dùng tạo TCP server và client kết nối đến để chat real-time |
+| **Precondition** | Ứng dụng đã khởi động, tab Socket → sub-tab Chat đang active |
+| **Postcondition** | Hai tiến trình có thể gửi/nhận tin nhắn text qua TCP |
+| **Luồng chính (Server)** | 1. Chọn mode "Server"<br>2. Nhập port (mặc định 8888)<br>3. Click "Start Server" → `QTcpServer.listen()`<br>4. Server lắng nghe kết nối đến<br>5. Client kết nối → `newConnection` signal → `nextPendingConnection()`<br>6. Gửi tin nhắn → `write()` → client nhận qua `readyRead` |
+| **Luồng chính (Client)** | 1. Chọn mode "Client"<br>2. Nhập host và port<br>3. Click "Connect" → `QTcpSocket.connectToHost()`<br>4. Kết nối thành công → `connected` signal<br>5. Gửi tin nhắn → `write()` → server broadcast đến các client khác |
+
+### UC05: Ping Host
 
 | Mục | Mô tả |
 |---|---|
@@ -317,7 +336,11 @@ Hàm `list_directory(path)`:
 - Đọc nội dung với giới hạn 100KB
 - Hiển thị trong terminal-style text edit
 
-## 5.3. Socket Monitor (`app/socket_monitor.py` + `ui/socket_tab.py`)
+## 5.3. Socket Monitor & Chat (`app/socket_monitor.py` + `ui/socket_tab.py` + `ui/chat_tab.py`)
+
+Socket tab gồm 2 sub-tab: **Monitor** và **Chat**.
+
+### 5.3.1. Monitor Sub-tab
 
 Đọc trực tiếp từ `/proc/net/`:
 - `/proc/net/tcp` → `parse_proc_net_tcp()` — danh sách TCP sockets
@@ -325,6 +348,50 @@ Hàm `list_directory(path)`:
 - `/proc/net/unix` → `parse_proc_net_unix()` — Unix domain sockets
 
 Mỗi socket entry chứa: local address, remote address, state, UID, inode, tx/rx queue.
+
+### 5.3.2. Chat Sub-tab (`ui/chat_tab.py`)
+
+Cho phép tạo TCP server và client kết nối đến để chat real-time, sử dụng **PyQt6 QtNetwork**:
+
+| Thành phần | Công nghệ | Mô tả |
+|---|---|---|
+| **Server** | `QTcpServer` | Lắng nghe kết nối trên port, accept client mới qua signal `newConnection` |
+| **Client** | `QTcpSocket` | Kết nối đến server qua host:port, gửi/nhận dữ liệu |
+| **Event-driven** | Signal/Slot | `readyRead`, `connected`, `disconnected`, `errorOccurred` — không cần thread |
+
+**Cơ chế hoạt động:**
+
+```
+Server Mode:
+  QTcpServer.listen(port)
+        │
+        ▼
+  newConnection signal → nextPendingConnection()
+        │
+        ▼
+  Thêm socket vào client_connections dict
+        │
+        ├─ readyRead → _on_client_data() → hiển thị + broadcast
+        └─ disconnected → _on_client_disconnected() → xóa khỏi danh sách
+
+Client Mode:
+  QTcpSocket.connectToHost(host, port)
+        │
+        ▼
+  connected signal → cập nhật UI
+        │
+        ├─ readyRead → _on_server_data() → hiển thị tin nhắn
+        └─ disconnected → _on_disconnected() → cập nhật UI
+
+Gửi tin nhắn:
+  socket.write(QByteArray) → kernel xử lý → gửi qua TCP stack → bên kia nhận
+```
+
+**Nguyên lý TCP kernel liên quan:**
+- `QTcpServer.listen()` → kernel tạo socket ở trạng thái `TCP_LISTEN` (backlog trong `listen(2)` syscall)
+- `QTcpSocket.connectToHost()` → kernel thực hiện 3-way handshake (SYN → SYN-ACK → ACK)
+- `write()` → dữ liệu đi qua TCP stack: `tcp_sendmsg()` → chia segment → gửi qua network layer
+- `readyRead` → kernel đã nhận dữ liệu và đặt vào `sk_receive_queue` (struct sock), userspace có thể đọc
 
 ## 5.4. Network Monitor (`app/network_monitor.py` + `ui/network_tab.py`)
 
@@ -650,9 +717,20 @@ chmod +x main.py
 - Click "Up" để lên thư mục cha
 
 ### Tab Socket
-- Xem danh sách TCP/UDP/Unix sockets
+
+Socket tab có 2 sub-tab: **Monitor** và **Chat**.
+
+**Monitor:**
+- Xem danh sách TCP/UDP/Unix sockets đọc từ `/proc/net/`
 - Chọn filter "All", "TCP", "UDP", hoặc "UNIX"
 - Tự động refresh mỗi 3 giây
+
+**Chat:**
+- **Server mode**: Chọn "Server" → nhập port → "Start Server" → lắng nghe kết nối
+- **Client mode**: Chọn "Client" → nhập host (VD: 127.0.0.1) và port → "Connect"
+- Sau khi kết nối, gõ tin nhắn và Enter (hoặc click Send) để chat
+- Server broadcast tin nhắn đến tất cả client đã kết nối
+- Click "Stop" để dừng server / "Disconnect" để ngắt kết nối
 
 ### Tab Network
 - **Interfaces**: xem RX/TX statistics + tốc độ real-time
@@ -662,7 +740,8 @@ chmod +x main.py
 ### Menu
 - `File → Refresh All (Ctrl+R)`: refresh tất cả tab
 - `File → Exit (Ctrl+Q)`: thoát
-- `View → Process/File/Socket/Network Tab (Ctrl+1-4)`: chuyển tab
+- `View → Process/File/Socket/Network Tab (Ctrl+1-4)`: chuyển tab chính
+  - Trong Socket tab: chọn sub-tab Monitor hoặc Chat bằng chuột
 - `Help → About`: thông tin ứng dụng
 
 ---
@@ -736,7 +815,65 @@ Hiển thị theo filter (All/TCP/UDP/UNIX)
 Summary: TCP: X, UDP: Y, UNIX: Z, LISTEN: N, ESTABLISHED: M
 ```
 
-## 8.3. Luồng Traffic Speed Calculation
+## 8.3. Luồng Socket Chat
+
+```
+Server:
+  [User] Click "Start Server"
+     │
+     ▼
+  QTcpServer.listen(QHostAddress("0.0.0.0"), port)
+     │
+     ├─ Thành công: cập nhật status "Listening"
+     │              server_status → success color
+     │
+     └─ Thất bại: log error + giữ nguyên UI
+     │
+     ▼
+  [Client kết nối]
+     │
+     ▼
+  QTcpServer.newConnection signal
+     │
+     ▼
+  nextPendingConnection() → QTcpSocket mới
+     │
+     ├─ Thêm vào client_connections dict
+     ├─ Thêm vào clients_list widget
+     ├─ Kết nối readyRead signal → _on_client_data()
+     └─ Kết nối disconnected signal → _on_client_disconnected()
+     │
+     ▼
+  [Server gửi tin nhắn]
+     │
+     ▼
+  _server_send() → broadcast đến tất cả client:
+     for each sock in client_connections:
+         sock.write(QByteArray("message"))
+
+Client:
+  [User] Click "Connect"
+     │
+     ▼
+  QTcpSocket.connectToHost(host, port)
+     │
+     ├─ connected signal → cập nhật UI (Connected)
+     ├─ errorOccurred signal → log error
+     │
+     ▼
+  [Client gửi tin nhắn]
+     │
+     ▼
+  _client_send() → client_socket.write(QByteArray("message"))
+     │
+     ▼
+  [Server nhận]
+     │
+     ▼
+  readyRead → _on_client_data() → readAll() → append chat display
+```
+
+## 8.4. Luồng Traffic Speed Calculation
 
 ```
 lần 1: get_traffic_snapshot() → before = {iface: {rx_bytes, tx_bytes, ...}}

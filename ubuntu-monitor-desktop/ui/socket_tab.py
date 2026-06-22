@@ -1,28 +1,55 @@
 """
-Socket Tab — xem danh sách socket từ /proc/net/.
+Socket Tab — xem danh sách socket từ /proc/net/ và chat qua TCP socket.
 
-Đọc trực tiếp /proc/net/{tcp,udp,unix} — mỗi row tương ứng
-một socket trong kernel socket hash table.
+Gồm 2 sub-tab:
+  - Monitor: đọc /proc/net/{tcp,udp,unix} hiển thị socket table
+  - Chat: tạo TCP server / client để chat real-time
 
 Kernel concepts:
   - TCP socket state machine trong include/net/tcp_states.h:
     TCP_ESTABLISHED=1, TCP_LISTEN=10, TCP_TIME_WAIT=6, ...
   - Mỗi socket được định danh bởi tuple {src_ip, src_port, dst_ip, dst_port}
   - struct sock chứa tất cả thông tin: sk_state, sk_uid, sk_rcvbuf, sk_sndbuf
+  - accept() tạo socket mới cho mỗi kết nối (fd mới)
 """
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
     QPushButton, QLabel, QHeaderView, QAbstractItemView, QTextEdit,
-    QFrame, QComboBox,
+    QFrame, QComboBox, QTabWidget,
 )
 
 from . import styles
 from app.socket_monitor import get_tcp_sockets, get_udp_sockets, get_unix_sockets, get_sockets_summary
+from .chat_tab import ChatTab
 
 
 class SocketTab(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
+
+        self.monitor_tab = _SocketMonitorTab()
+        self.tabs.addTab(self.monitor_tab, "Monitor")
+
+        self.chat_tab = ChatTab()
+        self.tabs.addTab(self.chat_tab, "Chat")
+
+        layout.addWidget(self.tabs)
+
+    def _refresh_sockets(self):
+        self.monitor_tab._refresh_sockets()
+
+
+class _SocketMonitorTab(QWidget):
     def __init__(self):
         super().__init__()
         self.setup_ui()
@@ -90,7 +117,6 @@ class SocketTab(QWidget):
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
 
-        # Columns depend on protocol — we'll resize in refresh
         columns = [
             ("Protocol", 60), ("State", 80), ("Local Address", 180),
             ("Remote Address", 180), ("UID", 50), ("Inode", 70),
@@ -137,8 +163,8 @@ class SocketTab(QWidget):
             items = [
                 s.get("protocol", "?"),
                 s.get("state", "?"),
-                s.get("local_address", "?"),
-                s.get("remote_address", "?"),
+                s.get("local", "?"),
+                s.get("remote", "?"),
                 str(s.get("uid", "?")),
                 str(s.get("inode", "?")),
                 str(s.get("rx_queue", "?")),
